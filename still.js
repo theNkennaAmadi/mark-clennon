@@ -1,9 +1,7 @@
 import gsap from "gsap";
-import Lenis from "@studio-freight/lenis";
 import {ScrollTrigger} from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
-
 
 
 export class Still{
@@ -20,6 +18,7 @@ export class Still{
     init(){
         this.revealImages()
         this.setUpNextPrev()
+        //this.setupImageHoverZoom()
     }
 
     revealImages(){
@@ -36,11 +35,11 @@ export class Still{
                           })
        })
 
-        gsap.fromTo(['.still-prev img', '.still-next img'],
+        gsap.fromTo(this.stillNextImgs,
             {clipPath: 'inset(100% 0% 0% 0%)'},
             {clipPath: 'inset(0% 0% 0% 0%)',
                 scrollTrigger: {
-                    trigger: '.still-prev',
+                    trigger: this.container.querySelector('.still-next'),
                     start: "top 80%",
                 },
                 duration: 1.5,
@@ -96,5 +95,63 @@ export class Still{
                 this.prevLink.querySelector('h2').textContent = prevHeading.textContent
             }
         }
+    }
+
+
+    setupImageHoverZoom() {
+        this.images.forEach(imageContainer => {
+            const img = imageContainer.querySelector('img');
+            if (!img) return;
+
+            const zoomContainer = document.createElement('div');
+            zoomContainer.classList.add('zoom-container');
+            zoomContainer.style.position = 'fixed';
+            zoomContainer.style.top = '0';
+            zoomContainer.style.left = '0';
+            zoomContainer.style.width = '100%';
+            zoomContainer.style.height = '100%';
+            zoomContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.75)';
+            zoomContainer.style.display = 'none';
+            zoomContainer.style.justifyContent = 'center';
+            zoomContainer.style.alignItems = 'center';
+            zoomContainer.style.zIndex = '1000';
+            zoomContainer.style.pointerEvents = 'none';
+
+            const zoomedImg = document.createElement('img');
+            zoomedImg.src = img.src;
+            zoomedImg.style.maxWidth = '60vw';
+            zoomedImg.style.maxHeight = '60vh';
+            zoomedImg.style.objectFit = 'contain';
+
+
+            zoomContainer.appendChild(zoomedImg);
+            document.body.appendChild(zoomContainer);
+
+            const showZoomedImage = (e) => {
+                const rect = img.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width;
+                const y = (e.clientY - rect.top) / rect.height;
+
+                zoomedImg.style.objectPosition = `${x * 100}% ${y * 100}%`;
+                zoomContainer.style.display = 'flex';
+                //gsap.to(zoomContainer, {display: 'flex', duration: 1})
+            };
+
+            const hideZoomedImage = () => {
+                zoomContainer.style.display = 'none';
+            };
+
+            const updateZoomPosition = (e) => {
+                const rect = img.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width;
+                const y = (e.clientY - rect.top) / rect.height;
+
+                zoomedImg.style.objectPosition = `${x * 100}% ${y * 100}%`;
+            };
+
+            img.addEventListener('mouseenter', showZoomedImage);
+            img.addEventListener('mousemove', updateZoomPosition);
+            img.addEventListener('mouseleave', hideZoomedImage);
+        });
     }
 }

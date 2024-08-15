@@ -2,6 +2,8 @@ import {gsap} from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
 import Splitting from "splitting";
+import Plyr from 'plyr';
+
 gsap.registerPlugin(ScrollTrigger, Flip);
 
 export class Info{
@@ -19,32 +21,21 @@ export class Info{
         this.init()
     }
     init(){
+        gsap.registerPlugin(ScrollTrigger, Flip);
         this.aboutReveal()
         this.initSplitting()
+        this.rotateBoxes()
+        this.revealPress()
     }
 
+
+
     aboutReveal(){
-        //this.heroImg.appendChild(this.introImg.querySelector('img'))
-        let tlRevealIntro = gsap.timeline({
-            onComplete: ()=>{
-
-                //gsap.to(this.heroWrapper, {backgroundColor: 'transparent', duration: 1})
-                /*
-                let state = Flip.getState(this.introImg);
-                this.introImg.appendChild(this.heroImg)
-                Flip.from(state, {
-                    duration: 1,
-                    ease: "power1.inOut",
-                    simple: true,
-                    willChange: "transform",
-                });
-
-                 */
-            }
-        })
+        let tlRevealIntro = gsap.timeline({})
         tlRevealIntro.set('.main', {opacity: 1})
         tlRevealIntro.set('.page-wrapper', {backgroundColor: 'black'})
-        tlRevealIntro.set(this.introImg, {x: '-42vw',width: '24rem'})
+        let value = window.innerWidth > 767 ? '-40vw' : '18vw'
+        tlRevealIntro.set(this.introImg, {x: value,width: '30vh'})
             .fromTo(this.introImg, {clipPath: 'inset(100% 0 0 0)'}, {clipPath: 'inset(0% 0 0 0)', yPercent: -110, duration: 1, ease: 'expo.out'})
             .to(this.introImg, {x: 0, yPercent: 0, width: '17rem', duration: 2, ease: 'expo.out'})
             .to('.page-wrapper', {backgroundColor: '#d9d9d9', onComplete: ()=>{
@@ -72,41 +63,7 @@ export class Info{
         });
 
         //Get all the characters and move them off the screen
-
         gsap.set([this.chars], {yPercent: 120});
-
-
-            /*
-        if (targets.length !== 0) {
-            targets.forEach((title) => {
-                if (!title.hasAttribute("no-instance")) {
-                    const chars = title.querySelectorAll(".char");
-                    gsap.fromTo(
-                        chars,
-                        {
-                            "will-change": "transform",
-                            transformOrigin: "0% 50%",
-                            yPercent: 120,
-                        },
-                        {
-                            duration: 2,
-                            ease: "expo.out",
-                            yPercent: 0,
-                            scrollTrigger: {
-                                trigger: title,
-                                invalidateOnRefresh: true,
-                                start: "top 95%",
-                                end: "bottom bottom",
-                                //scrub: true,
-                                //markers: true
-                            },
-                        }
-                    );
-                }
-            });
-        }
-
-             */
     }
 
     showText(){
@@ -138,6 +95,7 @@ export class Info{
                 }
             });
         }
+
         this.selectBoxWrappers.forEach((wrapper, index)=>{
             gsap.from(wrapper.querySelector('.select-box'), {
                 yPercent: 120,
@@ -170,10 +128,17 @@ export class Info{
                 tlShow.reverse()
             })
 
-            visual.addEventListener('click', ()=>{
-                gsap.to([visual.querySelector('.press-media-thumbnail'), visual.querySelector('.press-mask'), visual.querySelector('.play-wrapper')], {clipPath: 'inset(100% 0 0 0)', display: 'none', duration: 1, ease: 'expo.out', onComplete:()=>{
+            const player = new Plyr(visual.querySelector('.plyr__video-embed'));
+            visual.addEventListener('click', (e)=>{
+                e.preventDefault()
+
+                gsap.to(visual.querySelector('.m-video'),{opacity: 1})
+
+                gsap.to([visual.querySelector('.press-media-thumbnail'), visual.querySelector('.press-mask'), visual.querySelector('.play-wrapper')], { display: 'none', duration: 1, ease: 'expo.out', onComplete:()=>{
+                    player.play()
                 }})
-            })
+            }, {once: true})
+
         })
 
         this.speakingItems.forEach(item=>{
@@ -188,5 +153,21 @@ export class Info{
         })
     }
 
+    rotateBoxes(){
+        gsap.to(this.selectBoxWrappers, {rotate:720, scrollTrigger:{
+            trigger: this.selectBoxWrappers.parentElement,
+                scrub: 1,
+                start: "top top",
+                end: "bottom bottom"
+        }})
+    }
 
+    revealPress(){
+        this.pressVisuals.forEach(visual=>{
+            gsap.from(visual.querySelector('.press-media-grid'), {clipPath: 'inset(50% 50% 50% 50%)', rotateX:'10deg', rotateZ:'10deg' , duration: 3, ease: 'expo.out', scrollTrigger: {
+                trigger: visual,
+                start: "top 80%",
+            }})
+        })
+    }
 }

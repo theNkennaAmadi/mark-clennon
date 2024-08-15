@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { generateVideoThumbnails } from "@rajesh896/video-thumbnails-generator";
+import Lenis from "@studio-freight/lenis";
 
 export class Motion{
     constructor(container) {
@@ -21,8 +21,10 @@ export class Motion{
         this.iconPrev = this.container.querySelector('.controls-icon.prev')
         this.fullscreenBtn = this.container.querySelector('.fullscreen')
         this.workDurationWrapper = this.container.querySelector('.work-duration-wrapper')
+        this.lottieWrapper = this.container.querySelector('.lottie-wrapper')
         this.videoThumbnails = []
-        this.timelineInterval = 4 // seconds between major lines
+        this.progressMarker = null;
+        this.progressTrail = null;
         this.init()
     }
 
@@ -40,7 +42,6 @@ export class Motion{
         });
     }
 
-
     async init(){
         await this.loadVideo();
         this.toggleCredits()
@@ -50,12 +51,15 @@ export class Motion{
         this.nextUpTimelines()
 
 
+
         this.generateTimeline();
         this.setupTimelineNavigation()
         await this.generateThumbnails();
         this.addTimelineHoverEffects();
         // Show the video after everything is ready
         this.showVideo();
+        this.createProgressMarker();
+        this.setupProgressUpdate();
     }
 
     toggleCredits(){
@@ -216,7 +220,6 @@ export class Motion{
 
     generateTimeline() {
         const duration = this.video.duration;
-        console.log(duration);
 
         // Determine the ideal interval for major lines
         let majorInterval;
@@ -300,7 +303,14 @@ export class Motion{
     }
 
     showVideo() {
-        gsap.to(this.video, { opacity: 1, duration: 0.5 });
+        this.video.currentTime = 0;
+        this.mask = this.container.querySelector('.mask-alt')
+        gsap.to(this.video, { opacity: 1, duration: 0.65 });
+        gsap.to([this.lottieWrapper, this.mask], {opacity: 0, display: 'none', duration: 0.6});
+        if(!this.video.paused){
+            gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
+            gsap.to('.play', {fillOpacity: 0, duration: 0.75})
+        }
     }
 
     async generateThumbnails() {
@@ -384,6 +394,67 @@ export class Motion{
             gsap.to('.timeline-minor-line', {height: '10px', duration: 0.3, delay: 0.35});
             gsap.to('.video-thumbnail', {opacity: 0, duration: 0.3});
             gsap.to('.video-thumbnail', {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.75});
+        });
+    }
+
+    createProgressMarker() {
+        // Create the progress trail
+        this.progressTrail = document.createElement('div');
+        this.progressTrail.className = 'progress-trail';
+        this.workDurationWrapper.appendChild(this.progressTrail);
+
+        // Create the progress marker (glowing orb)
+        this.progressMarker = document.createElement('div');
+        this.progressMarker.className = 'progress-marker';
+        this.workDurationWrapper.appendChild(this.progressMarker);
+
+        // Add styles to the head of the document
+        const style = document.createElement('style');
+        style.textContent = `
+            .progress-trail {
+                position: absolute;
+                height: 4px;
+                background: linear-gradient(to right, #3498db, #D9D9D9);
+                bottom: 0;
+                left: 0;
+                transform-origin: left;
+                transform: scaleX(0);
+            }
+            .progress-marker {
+                position: absolute;
+                width: 0.5rem;
+                height: 0.5rem;
+                border-radius: 50%;
+                background-color: #D9D9D9;
+                box-shadow: 0 0 10px #D9D9D9, 0 0 20px #D9D9D9;
+                bottom: -4px;
+                transform: translateX(-50%);
+                z-index: 10;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    setupProgressUpdate() {
+        this.video.addEventListener('timeupdate', () => {
+            const progress = this.video.currentTime / this.video.duration;
+            this.updateProgressMarker(progress);
+        });
+    }
+
+    updateProgressMarker(progress) {
+        const markerPosition = this.workDurationWrapper.offsetWidth * progress;
+
+        gsap.to(this.progressMarker, {
+            left: markerPosition,
+            duration: 0.5,
+            ease: 'ease.out'
+        });
+
+        gsap.to(this.progressTrail, {
+            scaleX: progress,
+            duration: 0.5,
+            ease: 'ease.out'
         });
     }
 
