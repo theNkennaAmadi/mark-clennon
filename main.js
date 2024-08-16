@@ -67,12 +67,11 @@ function resetWebflow(data) {
     const siteId = dom.querySelector("html").getAttribute("data-wf-site");
 
     document.querySelector("html").setAttribute("data-wf-page", webflowPageId);
-
     if (window.Webflow) {
         window.Webflow.destroy();
         window.Webflow.ready();
         window.Webflow.require('commerce').init({ siteId: siteId });
-        window.Webflow.require("ix2").init();
+        window.Webflow.require('ix2').init();
     }
 }
 
@@ -92,13 +91,14 @@ barba.hooks.beforeLeave((data) => {
 
 barba.hooks.enter((data) => {
     gsap.set([data.next.container, data.current.container], { position: "fixed", top: 0, left: 0, width: "100%", height:'100vh' });
-
 });
 barba.hooks.after((data) => {
     gsap.set(data.next.container, { position: "relative", height: "auto", clearProps: "all" });
     resetWebflow(data);
     ScrollTrigger.refresh();
 });
+
+
 
 
 let firstLoad = true;

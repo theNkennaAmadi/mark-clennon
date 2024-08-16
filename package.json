@@ -16,6 +16,7 @@
     "@rajesh896/video-thumbnails-generator": "^2.3.9",
     "@studio-freight/lenis": "^1.0.42",
     "gsap": "^3.12.5",
+    "lottie-web": "^5.12.2",
     "plyr": "^3.7.8",
     "splitting": "^1.1.0",
     "three": "^0.167.0",

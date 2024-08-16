@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { gsap } from "gsap";
 import VirtualScroll from 'virtual-scroll';
+import lottie from 'lottie-web';
 
 export class Home {
     constructor(container) {
@@ -25,6 +26,24 @@ export class Home {
         this.setupVideos();
         this.setupEventListeners();
         this.setupMouseHover();
+        lottie.loadAnimation({
+            container: document.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
+            renderer: 'svg',
+            loop: false,
+            autoplay: false,
+            path: 'https://uploads-ssl.webflow.com/66a50e6f73ed41b0d65cda81/66be088ed8cdf3532efe6a88_Ka8gov3JNr.json'
+        });
+        lottie.loadAnimation({
+            container: document.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
+            renderer: 'svg',
+            loop: false,
+            autoplay: false,
+            path: 'https://uploads-ssl.webflow.com/66a50e6f73ed41b0d65cda81/66be28d1a741a57883a6587d_PBRH4Lxx8M.json'
+        });
+        this.animations = lottie.getRegisteredAnimations();
+        this.animations[0].renderer.svgElement.classList.add('l-image');
+        this.animations[1].renderer.svgElement.classList.add('l-video');
+        gsap.set('.l-video', { opacity: 0 });
         gsap.to('.home-lottie-wrapper', { opacity: 1, duration: 1, delay: 0.5 });
     }
 
@@ -74,13 +93,16 @@ export class Home {
             if (hoveredPlane instanceof Plane) {
                 if (this.currentName === hoveredPlane.userData.name) return;
                 if (hoveredPlane.el.tagName === "VIDEO") {
-                    gsap.set('.home-indicator-lottie.video', { opacity: 1, overwrite: true });
-                    gsap.set('.home-indicator-lottie.image', { opacity: 0, overwrite: true });
+                    gsap.set('.home-indicator-lottie-wrapper svg:nth-child(2)', { opacity: 1, overwrite: true });
+                    gsap.set('.home-indicator-lottie-wrapper svg:nth-child(1)', { opacity: 0, overwrite: true });
                 } else {
-                    gsap.set('.home-indicator-lottie.video', { opacity: 0, overwrite: true });
-                    gsap.set('.home-indicator-lottie.image', { opacity: 1, overwrite: true });
+                    gsap.set('.home-indicator-lottie-wrapper svg:nth-child(2)', { opacity: 0, overwrite: true });
+                    gsap.set('.home-indicator-lottie-wrapper svg:nth-child(1)', { opacity: 1, overwrite: true });
                 }
-                document.querySelector('.home-indicator-lottie-wrapper').click();
+                this.animations.forEach((animation) => {
+                    animation.setSpeed(3);
+                    animation.playSegments([0,100])
+                });
                 gsap.to('.home-indicator-name', { opacity: 0, duration: 0.1, onComplete: () => {
                         document.querySelector('.home-indicator-name').textContent = hoveredPlane.userData.name;
                     }});
