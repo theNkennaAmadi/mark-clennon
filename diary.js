@@ -77,14 +77,19 @@ export class Diary {
         gsap.to(this.chars,  {
             ease: 'none', // Animation easing.
             stagger: 0.025, // Delay between starting animations for each character.
-            onComplete: ()=>{
-                this.setupControls();
-                this.setupLights();
-                this.loadImages();
-                this.addEventListeners();
-                this.animate();
+            onComplete: () => {
+                // Use requestAnimationFrame to defer 3D scene setup
+                requestAnimationFrame(() => this.initScene());
             }
         });
+    }
+
+    initScene() {
+        this.setupControls();
+        this.setupLights();
+        this.loadImages();
+        this.addEventListeners();
+        this.animate();
     }
 
 
@@ -110,46 +115,61 @@ export class Diary {
         const loader = new THREE.TextureLoader();
         const radius = 20;
 
-        this.imageUrls.forEach((url, index) => {
-            loader.load(url, (texture) => {
-                const aspect = texture.image.width / texture.image.height;
-                const geometry = new THREE.PlaneGeometry(aspect, 1);
-                const material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.DoubleSide,
-                    transparent: false,
-                    opacity: 1
-                });
-                const mesh = new THREE.Mesh(geometry, material);
+        // Load images in batches to reduce GPU load
+        const batchSize = 5;
+        const loadBatch = (startIndex) => {
+            const endIndex = Math.min(startIndex + batchSize, this.imageUrls.length);
+            for (let index = startIndex; index < endIndex; index++) {
+                this.loadSingleImage(loader, radius, index);
+            }
+            if (endIndex < this.imageUrls.length) {
+                setTimeout(() => loadBatch(endIndex), 100);
+            }
+        };
 
-                texture.colorSpace = THREE.SRGBColorSpace
-                texture.minFilter = THREE.LinearFilter
-                texture.magFilter = THREE.LinearFilter
-                texture.format = THREE.RGBAFormat
+        loadBatch(0);
+    }
 
-                const phi = Math.acos(-1 + (2 * index) / this.imageUrls.length);
-                const theta = Math.sqrt(this.imageUrls.length * Math.PI) * phi;
+    loadSingleImage(loader, radius, index) {
+        loader.load(this.imageUrls[index], (texture) => {
+            const aspect = texture.image.width / texture.image.height;
+            const geometry = new THREE.PlaneGeometry(aspect, 1);
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.DoubleSide,
+                transparent: false,
+                opacity: 1
+            });
+            const mesh = new THREE.Mesh(geometry, material);
 
-                mesh.position.setFromSphericalCoords(radius, phi, theta);
-                mesh.lookAt(0, 0, 0);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            texture.format = THREE.RGBAFormat;
 
-                const scale = 1 + Math.random() * 0.5;
-                mesh.scale.set(scale * aspect, scale, 1);
+            const phi = Math.acos(-1 + (2 * index) / this.imageUrls.length);
+            const theta = Math.sqrt(this.imageUrls.length * Math.PI) * phi;
 
-                this.scene.add(mesh);
-                this.images.push(mesh);
+            mesh.position.setFromSphericalCoords(radius, phi, theta);
+            mesh.lookAt(0, 0, 0);
 
-                gsap.from(mesh.scale, {
-                    x: 0,
-                    y: 0,
-                    z: 0,
-                    duration: 1,
-                    ease: "back.out(1.7)",
-                    delay: index * 0.1
-                });
+            const scale = 1 + Math.random() * 0.5;
+            mesh.scale.set(scale * aspect, scale, 1);
+
+            this.scene.add(mesh);
+            this.images.push(mesh);
+
+            gsap.from(mesh.scale, {
+                x: 0,
+                y: 0,
+                z: 0,
+                duration: 1,
+                ease: "back.out(1.7)",
+                delay: index * 0.1
             });
         });
     }
+
 
     addEventListeners() {
         window.addEventListener('resize', () => this.onWindowResize(), false);
@@ -182,7 +202,7 @@ export class Diary {
         }
     }
 
-    onClick(event) {
+    onClick() {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.images);
 

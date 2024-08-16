@@ -15,7 +15,6 @@ export class StillListing {
         this.imagePlanes = []
         this.items = [...container.querySelectorAll('.stills-item')];
         this.itemLinks = [...container.querySelectorAll('.stills-link')]
-        this.itemUrls = this.items.map(item => item.querySelector('a').href);
         this.imageUrls = this.items.map(item => item.querySelector('img').src);
         this.imageNames = this.items.map(item => item.querySelector('.s-name').textContent);
         this.totalItems = this.items.length
@@ -30,7 +29,6 @@ export class StillListing {
         this.xAngle = (angle) => this.radius * Math.sin(angle)
         this.zAngle = (angle) => this.radius * Math.cos(angle)
 
-        this.scrollTriggerInstance = null // Add this line to store the ScrollTrigger instance
 
         this.currentMiddleIndex = 0;
         this.loadedImages = 0
@@ -56,8 +54,6 @@ export class StillListing {
         this.addEventListeners()
         this.updateImagePositions(0);
         this.updateHTMLPositions()
-        gsap.to(this.container.querySelector('.main'), { duration: 0.2, scrollTo: { y: 2 }, ease: "power2" });
-        window.scroll(0, 2);
     }
 
     setupThreeJS() {
@@ -104,6 +100,17 @@ export class StillListing {
     }
 
     updateHTMLPositions() {
+       setTimeout(()=>{
+           requestAnimationFrame(() => {
+               window.scrollBy({
+                   top: 1,
+                   left: 0,
+                   behavior: "smooth",
+               });
+           });
+       },400)
+
+        console.log(this.currentMiddleIndex)
         this.updatePositions(this.currentMiddleIndex, this.totalItems);
     }
 
@@ -127,16 +134,18 @@ export class StillListing {
                 const scale = 8
                 const geometry = new THREE.PlaneGeometry(scale * aspect, scale)
                 const mesh = new THREE.Mesh(geometry, material)
+                mesh.userData.name = this.imageNames[index]
 
                 texture.colorSpace = THREE.SRGBColorSpace
                 texture.minFilter = THREE.LinearFilter
                 texture.magFilter = THREE.LinearFilter
+                texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy()
                 texture.format = THREE.RGBAFormat
 
                 const angle = (index / this.imageUrls.length) * this.angle
-                const yPosition = index * this.spacing - this.totalHeight / 2
+                const yPosition = index * (this.spacing+15) - this.totalHeight / 2
                 mesh.position.set(this.xAngle(angle), yPosition, this.zAngle(angle))
-                mesh.userData.name = this.imageNames[index]
+
 
                 this.scene.add(mesh)
                 this.imagePlanes.push(mesh)
@@ -160,7 +169,7 @@ export class StillListing {
     }
 
     setupAnimation() {
-        this.scrollTriggerInstance =  ScrollTrigger.create({
+        ScrollTrigger.create({
             trigger: this.container.querySelector('.main'),
             start: 'top top',
             end: `+=${this.totalItems * 40}%`,
@@ -172,12 +181,10 @@ export class StillListing {
             },
         });
 
-
         const animate = () => {
             requestAnimationFrame(animate)
             this.renderer.render(this.scene, this.camera)
         }
-        //window.scroll(0, 4)
 
         animate()
         gsap.to('.still-name-list', {opacity: 1, duration: 1})
@@ -193,7 +200,7 @@ export class StillListing {
 
         this.imagePlanes.forEach((plane, index) => {
             const yPos =
-                ((scrollY + index * this.spacing) % this.totalHeight) - this.totalHeight / 2;
+                ((scrollY + index * this.spacing+15) % this.totalHeight) - this.totalHeight / 2;
             plane.position.y = yPos;
 
             const angle = (yPos / this.totalHeight + 0.5) * this.angle;
