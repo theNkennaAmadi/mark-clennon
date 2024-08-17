@@ -110,7 +110,7 @@ export class StillListing {
            });
        },400)
 
-        console.log(this.currentMiddleIndex)
+        //console.log(this.currentMiddleIndex)
         this.updatePositions(this.currentMiddleIndex, this.totalItems);
     }
 
@@ -392,7 +392,7 @@ export class StillListing {
         const targetX = ((targetRect.left + targetRect.width / 2) / window.innerWidth) * targetWidth - targetWidth / 2;
         const targetY = -((targetRect.top + targetRect.height / 2) / window.innerHeight) * targetHeight + targetHeight / 2;
 
-        console.log(clickedMesh)
+        //console.log(clickedMesh)
         // Animate the clicked mesh
         return new Promise(resolve => {
             gsap.to(clickedMesh.position, {

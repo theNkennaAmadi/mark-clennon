@@ -76,7 +76,6 @@ function resetWebflow(data) {
 }
 
 barba.hooks.beforeLeave((data) => {
-    //lenis.destroy()
     // Kill ScrollTrigger instances
     ScrollTrigger.killAll()
 
@@ -97,8 +96,6 @@ barba.hooks.after((data) => {
     resetWebflow(data);
     ScrollTrigger.refresh();
 });
-
-
 
 
 let firstLoad = true;
@@ -220,18 +217,12 @@ barba.init({
                 });
             }
         },
-
         {
             sync: true,
             enter(data) {
-                const currentContainer = data.current.container;
                 const nextContainer = data.next.container;
-                let tlTransition = gsap.timeline({defaults: {ease: "expo.out", onComplete: () => {
-                            ScrollTrigger.refresh();
-                        }}});
-                tlTransition
-                   // .to(currentContainer, {clipPath: `inset(0% 0 100% 0)`, duration: 1})
-                    .from(nextContainer, {clipPath: `inset(100% 0 0 0)`, duration: 1}, "<")
+                let tlTransition = gsap.timeline({defaults: {ease: "expo.out", onComplete: () => {ScrollTrigger.refresh();}}});
+                tlTransition.from(nextContainer, {clipPath: `inset(100% 0 0 0)`, duration: 1}, "<")
                 return tlTransition;
             }
         }

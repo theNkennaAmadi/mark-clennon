@@ -13,8 +13,9 @@ export class Home {
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.currentName = null;
+        this.header = this.container.querySelector('.header');
 
-        const nullElements = [...document.querySelectorAll(".w-condition-invisible")];
+        const nullElements = [...this.container.querySelectorAll(".w-condition-invisible")];
         nullElements.forEach((nullElement) => {
             nullElement.remove();
         });
@@ -27,14 +28,14 @@ export class Home {
         this.setupEventListeners();
         this.setupMouseHover();
         lottie.loadAnimation({
-            container: document.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
+            container: this.container.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
             renderer: 'svg',
             loop: false,
             autoplay: false,
             path: 'https://uploads-ssl.webflow.com/66a50e6f73ed41b0d65cda81/66be088ed8cdf3532efe6a88_Ka8gov3JNr.json'
         });
         lottie.loadAnimation({
-            container: document.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
+            container: this.container.querySelector('.home-indicator-lottie-wrapper'), // the dom element that will contain the animation
             renderer: 'svg',
             loop: false,
             autoplay: false,
@@ -48,7 +49,7 @@ export class Home {
     }
 
     setupImages() {
-        const images = [...document.querySelectorAll("img")];
+        const images = [...this.container.querySelectorAll("img")];
         images.forEach((img) => {
             let source = img.getAttribute("src");
             img.setAttribute("data-src", source);
@@ -57,7 +58,7 @@ export class Home {
     }
 
     setupVideos() {
-        const videos = [...document.querySelectorAll("video")];
+        const videos = [...this.container.querySelectorAll("video")];
         videos.forEach((video) => {
             let source = video.getAttribute("src");
             video.setAttribute("data-src", source);
@@ -147,7 +148,6 @@ class Core {
         this.container = container;
         this.items = [...this.container.querySelectorAll('.home-cc-item')];
         this.itemLinks = this.items.map(item => item.querySelector('a'));
-        this.itemUrls = this.items.map(item => item.querySelector('a').href);
         this.itemNames = this.items.map(item => item.querySelector('.h-name').textContent);
         this.tx = 0;
         this.ty = 0;
@@ -215,6 +215,13 @@ class Core {
         window.addEventListener('touchmove', this.onTouchMove);
         window.addEventListener('touchend', this.onTouchEnd);
         this.renderer.domElement.addEventListener('click', this.onClick);
+
+        this.container.querySelector('.header').addEventListener('mouseenter', () => {
+            gsap.to('.home-indicator', { opacity: 0, duration: 0.5, overwrite: true });
+        });
+        this.container.querySelector('.header').addEventListener('mouseleave', () => {
+            gsap.to('.home-indicator', { opacity: 1, duration: 0.5, overwrite: true })
+        });
     }
 
     addPlanes() {

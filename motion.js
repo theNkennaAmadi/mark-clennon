@@ -49,7 +49,7 @@ export class Motion{
         this.toggleControls()
         this.setUpNextPrev()
         this.nextUpTimelines()
-
+        this.updatePaths();
 
 
         this.generateTimeline();
@@ -60,6 +60,8 @@ export class Motion{
         this.showVideo();
         this.createProgressMarker();
         this.setupProgressUpdate();
+
+        this.addListener();
     }
 
     toggleCredits(){
@@ -380,7 +382,6 @@ export class Motion{
         });
     }
 
-
     addTimelineHoverEffects() {
         this.workDurationWrapper.addEventListener('mouseenter', () => {
             gsap.to('.timeline-major-line', {height: '20px', duration: 0.3});
@@ -458,4 +459,57 @@ export class Motion{
         });
     }
 
+    addListener(){
+        this.video.addEventListener('click', () => {
+            if(!this.video.paused){
+                gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
+                gsap.to('.play', {fillOpacity: 0, duration: 0.75})
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            this.updatePaths();
+        });
+
+        this.container.querySelectorAll('.link-wrapper').forEach(wrapper => {
+            wrapper.addEventListener('mouseenter', this.applyHoverStyles);
+            wrapper.addEventListener('mouseleave', this.updatePaths);
+        });
+    }
+
+
+
+    updatePaths(){
+        const rects = document.querySelectorAll('.embed.credits rect');
+        rects.forEach(rect => {
+            rect.style.strokeDasharray = `${remToPx(1.25)}px ${remToPx(0.625)}px ${remToPx(1.25)}px ${remToPx(5)}px`;
+            rect.style.strokeDashoffset = `${remToPx(2.5)}px`;
+            rect.style.strokeWidth = `${remToPx(0.0625)}px`;
+        });
+
+        const rects2 = document.querySelectorAll('.embed.hide-c rect');
+        rects2.forEach(rect => {
+            rect.style.strokeDasharray = `${remToPx(1)}px ${remToPx(0.5)}px ${remToPx(1)}px ${remToPx(4)}px`;
+            rect.style.strokeDashoffset = `${remToPx(2)}px`;
+            rect.style.strokeWidth = `${remToPx(0.0625)}px`;
+        });
+    }
+
+    applyHoverStyles(){
+        const rects = document.querySelectorAll('.embed.credits rect');
+        rects.forEach(rect => {
+            rect.style.strokeDashoffset = `${remToPx(10.625)}px`;
+            rect.style.strokeDasharray = `${remToPx(1.25)}px ${remToPx(0.625)}px ${remToPx(1.25)}px ${remToPx(5)}px`;
+        });
+
+        const rects2 = document.querySelectorAll('.embed.hide-c rect');
+        rects2.forEach(rect => {
+            rect.style.strokeDashoffset = `${remToPx(8.5)}px`;
+            rect.style.strokeDasharray = `${remToPx(1)}px ${remToPx(0.5)}px ${remToPx(1)}px ${remToPx(4)}px`;
+        });
+    }
+}
+
+function remToPx(rem) {
+    return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
 }

@@ -368,7 +368,6 @@ export class MotionListing {
             // Store the original position and scale
             const originalPosition = mesh.position.clone();
             const originalScale = mesh.scale.clone();
-            console.log(mesh)
 
             gsap.to('.motion-listing-wrapper', {opacity: 0, duration: 0.1});
             this.hideTextMesh(mesh)
@@ -418,25 +417,6 @@ export class MotionListing {
                 onComplete: () => {
                     // Trigger the link click after the animation
                    link.click();
-
-                    // Reset the mesh to its original position and scale
-                    /*
-                    gsap.to(mesh.position, {
-                        x: originalPosition.x,
-                        y: originalPosition.y,
-                        z: originalPosition.z,
-                        duration: 0,
-                        delay: 0.1 // Small delay to ensure the link has been triggered
-                    });
-                    gsap.to(mesh.scale, {
-                        x: originalScale.x,
-                        y: originalScale.y,
-                        z: originalScale.z,
-                        duration: 0,
-                        delay: 0.1
-                    });
-
-                     */
                 }
             })
 
