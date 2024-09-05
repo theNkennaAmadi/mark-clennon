@@ -66,6 +66,7 @@ export class StillListing {
         )
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         this.renderer.setSize(window.innerWidth, window.innerHeight)
+        this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setClearColor(0xffffff, 0)
         this.container.querySelector('.main').appendChild(this.renderer.domElement)
         this.camera.position.set(0, 0, 1)

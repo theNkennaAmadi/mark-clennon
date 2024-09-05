@@ -220,7 +220,7 @@ class Core {
             gsap.to('.home-indicator', { opacity: 0, duration: 0.5, overwrite: true });
         });
         this.container.querySelector('.header').addEventListener('mouseleave', () => {
-            gsap.to('.home-indicator', { opacity: 1, duration: 0.5, overwrite: true })
+            gsap.to('.home-indicator', { opacity: 1, duration: 0.5, overwrite: true });
         });
     }
 
@@ -399,7 +399,7 @@ class Plane extends THREE.Object3D {
         this.el = el;
         this.x = 0;
         this.y = 0;
-        this.my = 1 - (i % window.innerWidth > 787 ? 5 : 5) * 0.1;
+        this.my = 1 - (i % 5) * 0.1;
         this.setupTexture();
         this.mesh = new THREE.Mesh(this.geometry, this.material);
         this.add(this.mesh);

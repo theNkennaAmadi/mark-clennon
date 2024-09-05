@@ -19,21 +19,16 @@ export class Diary {
         this.currentlyFocused = null;
         this.originalFOV = 75;
         this.zoomedFOV = 40;
-
         this.init();
-
     }
 
     init() {
         this.initSplitting()
-
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setClearColor(0x000000, 0);
         this.container.appendChild(this.renderer.domElement);
-
         this.camera.position.set(0, 0, 20);
-
-
     }
 
 
