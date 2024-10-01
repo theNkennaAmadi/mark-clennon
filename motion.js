@@ -1,155 +1,272 @@
-// Motion.js
-import {gsap} from "gsap";
+import gsap from "gsap";
 import Lenis from "@studio-freight/lenis";
 
-export class Motion {
+export class Motion{
     constructor(container) {
-        this.container = container;
-        this.elements = {
-            showCreditsBtn: this.container.querySelector('#showCreditsBtn'),
-            creditsWrapper: this.container.querySelector('.motion-credits-wrapper'),
-            hideCreditsBtn: this.container.querySelector('#hideCreditsBtn'),
-            video: this.container.querySelector('#mainVideo'),
-            playBtn: this.container.querySelector('#playBtn'),
-            soundBtn: this.container.querySelector('#soundBtn'),
-            soundLines: [...this.container.querySelectorAll('.sound-line')],
-            nextLinksContainer: document.querySelectorAll('.next-link'),
-            nextLink: this.container.querySelector('.motion-next-wrapper'),
-            nextVideo: this.container.querySelector('#nextVideo'),
-            prevLink: this.container.querySelector('.motion-prev-wrapper'),
-            prevVideo: this.container.querySelector('#prevVideo'),
-            iconNext: this.container.querySelector('.controls-icon.next'),
-            iconPrev: this.container.querySelector('.controls-icon.prev'),
-            fullscreenBtn: this.container.querySelector('.fullscreen'),
-            workDurationWrapper: this.container.querySelector('.work-duration-wrapper'),
-            lottieWrapper: this.container.querySelector('.lottie-wrapper'),
-            mask: this.container.querySelector('.mask-alt')
-        };
-        this.videoThumbnails = [];
+        this.container = container
+        this.showCreditsBtn = this.container.querySelector('#showCreditsBtn')
+        this.creditsWrapper = this.container.querySelector('.motion-credits-wrapper')
+        this.hideCreditsBtn = this.container.querySelector('#hideCreditsBtn')
+        this.video = this.container.querySelector('#mainVideo')
+        this.playBtn = this.container.querySelector('#playBtn')
+        this.soundBtn = this.container.querySelector('#soundBtn')
+        this.soundLines = [...this.container.querySelectorAll('.sound-line')];
+        this.nextLinksContainer = document.querySelectorAll('.next-link');
+        this.links = Array.from(this.nextLinksContainer).map(link => link.getAttribute('href'));
+        this.nextLink = this.container.querySelector('.motion-next-wrapper')
+        this.nextVideo = this.container.querySelector('#nextVideo')
+        this.prevLink = this.container.querySelector('.motion-prev-wrapper')
+        this.prevVideo = this.container.querySelector('#prevVideo')
+        this.iconNext = this.container.querySelector('.controls-icon.next')
+        this.iconPrev = this.container.querySelector('.controls-icon.prev')
+        this.fullscreenBtn = this.container.querySelector('.fullscreen')
+        this.workDurationWrapper = this.container.querySelector('.work-duration-wrapper')
+        this.lottieWrapper = this.container.querySelector('.lottie-wrapper')
+        this.videoThumbnails = []
         this.progressMarker = null;
         this.progressTrail = null;
-        this.links = Array.from(this.elements.nextLinksContainer).map(link => link.getAttribute('href'));
-        this.init();
-    }
-
-    async init() {
-        await this.loadVideo();
-        this.setupCredits();
-        this.setupSoundAnimation();
-        this.setupControls();
-        this.setupNextPrev();
-        this.setupTimeline();
-        this.showVideo();
-        this.addEventListeners();
+        this.init()
     }
 
     loadVideo() {
         return new Promise((resolve) => {
-            if (this.elements.video.readyState >= 2) {
+            if (this.video.readyState >= 2) {
                 resolve();
             } else {
-                const onLoadedData = () => {
-                    this.elements.video.removeEventListener('loadeddata', onLoadedData);
+                this.video.addEventListener('loadeddata', function onLoadedData() {
+                    this.video.removeEventListener('loadeddata', onLoadedData);
                     resolve();
-                };
-                this.elements.video.addEventListener('loadeddata', onLoadedData);
-                this.elements.video.src = this.elements.video.src;
+                }.bind(this));
+                this.video.src = this.video.src; // Trigger loading if not already loaded
             }
         });
     }
 
-    setupCredits() {
-        this.creditsTl = gsap.timeline({paused: true});
-        this.creditsTl.to(this.elements.creditsWrapper, {
-            clipPath: 'inset(0% 0% 0% 0%)',
-            ease: 'expo.out',
-            duration: 1
-        });
+    async init(){
+        await this.loadVideo();
+        this.toggleCredits()
+        this.animateSoundIcons()
+        this.toggleControls()
+        this.setUpNextPrev()
+        this.nextUpTimelines()
+        this.updatePaths();
+
+
+        this.generateTimeline();
+        this.setupTimelineNavigation()
+        await this.generateThumbnails();
+        this.addTimelineHoverEffects();
+        // Show the video after everything is ready
+        this.showVideo();
+        this.createProgressMarker();
+        this.setupProgressUpdate();
+
+        this.addListener();
     }
 
-    setupSoundAnimation() {
-        gsap.set(this.elements.soundLines, {transformOrigin: "bottom center"});
+    toggleCredits(){
+        this.creditsTl = gsap.timeline({paused: true})
+        this.creditsTl.to(this.creditsWrapper, {clipPath: 'inset(0% 0% 0% 0%)', ease: 'expo.out', duration: 1})
+
+        this.showCreditsBtn.addEventListener('click', () => {
+            this.creditsTl.play()
+        })
+
+        this.hideCreditsBtn.addEventListener('click', () => {
+            this.creditsTl.reverse()
+        })
+    }
+
+    muteVideo(){
+        this.video.muted = true
+        gsap.to('.mute', {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.75})
+    }
+
+    unmuteVideo(){
+        this.video.muted = false
+        gsap.to('.mute', {clipPath: 'inset(100% 0% 0% 0%)', duration: 0.75})
+    }
+
+    playVideo(){
+        this.video.play()
+        gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
+        gsap.to('.play', {fillOpacity: 0, duration: 0.75})
+    }
+
+    pauseVideo(){
+        this.video.pause()
+        gsap.to('.pause', {fillOpacity: 0, duration: 0.75})
+        gsap.to('.play', {fillOpacity: 1, duration: 0.75})
+    }
+
+    animateSoundIcons(){
+        // Set the transform origin to the bottom center for all sound lines
+        gsap.set(this.soundLines, {transformOrigin: "bottom center"});
+
+        // Create a timeline
         this.tlSoundLines = gsap.timeline({repeat: -1, yoyo: true, paused: true});
-        this.elements.soundLines.forEach((line, index) => {
+
+        // Animate each sound line
+        this.soundLines.forEach((line, index) => {
             this.tlSoundLines.to(line, {
-                scaleY: gsap.utils.random(0.3, 0.7),
+                scaleY: gsap.utils.random(0.3, 0.7), // Random scale between 0.3 and 1
                 duration: 0.4,
                 ease: "power1.inOut"
-            }, index * 0.2);
+            }, index * 0.2); // Stagger the animations
         });
     }
 
-    setupControls() {
-        // Implemented in handleContainerClick
+    checkSoundLinesAnimation() {
+        if (!this.video.muted && !this.video.paused) {
+            this.tlSoundLines.play();
+        } else {
+            this.tlSoundLines.pause();
+            gsap.to(this.soundLines, { scaleY: 1, duration: 0.1 });
+        }
     }
 
-    setupNextPrev() {
-        const {previous, next} = this.findAdjacentLinks(window.location.pathname, this.links);
-        this.setupLink(next, this.elements.nextLink, this.elements.iconNext, this.elements.nextVideo);
-        this.setupLink(previous, this.elements.prevLink, this.elements.iconPrev, this.elements.prevVideo);
-
+    nextUpTimelines(){
         this.tlNext = gsap.timeline({paused: true});
-        this.tlNext.to(this.elements.nextLink, {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.5})
-            .fromTo('.mask', {opacity: 0}, {opacity: 1, duration: 0.5}, "<");
+        this.tlNext.to(this.nextLink, {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.5})
+            //.to('.motion-visual', {width: '50%', justifySelf: 'start', duration: 0.5,}, "<")
+            .fromTo('.mask',{opacity: 0},  {opacity: 1, duration: 0.5,}, "<")
 
         this.tlPrev = gsap.timeline({paused: true});
-        this.tlPrev.to(this.elements.prevLink, {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.5})
-            .fromTo('.mask', {opacity: 0}, {opacity: 1, duration: 0.5}, "<");
+        this.tlPrev.to(this.prevLink, {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.5})
+            .fromTo('.mask',{opacity: 0}, {opacity: 1, duration: 0.5,}, "<")
+            //.to('.motion-visual', {width: '50%', justifySelf: 'end', duration: 0.5}, "<")
     }
 
-    setupLink(link, linkElement, iconElement, videoElement) {
-        if (link) {
-            linkElement.href = link;
-            iconElement.href = link;
-            const linkContainer = this.elements.nextLinksContainer[this.links.indexOf(link)];
-            const videoLinkElement = linkContainer.querySelector('.video-link');
-            if (videoLinkElement && videoElement) {
-                videoElement.src = videoLinkElement.textContent.trim();
+    toggleControls() {
+        this.soundBtn.addEventListener('click', () => {
+            this.video.muted ? this.unmuteVideo() : this.muteVideo();
+            this.checkSoundLinesAnimation();
+        });
+
+        this.playBtn.addEventListener('click', () => {
+            this.video.paused ? this.playVideo() : this.pauseVideo();
+            this.checkSoundLinesAnimation();
+        });
+
+        this.video.addEventListener('play', () => {
+            this.checkSoundLinesAnimation();
+        });
+
+        this.video.addEventListener('pause', () => {
+            this.checkSoundLinesAnimation();
+        });
+
+        this.fullscreenBtn.addEventListener('click',()=> {
+            if (this.video.requestFullscreen) {
+                this.video.requestFullscreen();
+            } else if (this.video.mozRequestFullScreen) { // Firefox
+                this.video.mozRequestFullScreen();
+            } else if (this.video.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                this.video.webkitRequestFullscreen();
+            } else if (this.video.msRequestFullscreen) { // IE/Edge
+                this.video.msRequestFullscreen();
             }
-        }
+        });
     }
 
     findAdjacentLinks(url, links) {
         const index = links.indexOf(url);
-        if (index === -1) return {previous: null, next: null};
+
+        if (index === -1) {
+            return { previous: null, next: null };
+        }
+
         const previous = index === 0 ? links[links.length - 1] : links[index - 1];
         const next = index === links.length - 1 ? links[0] : links[index + 1];
-        return {previous, next};
+
+        return { previous, next };
     }
 
-    setupTimeline() {
-        this.generateTimeline();
-        this.setupTimelineNavigation();
-        this.generateThumbnails();
-        this.addTimelineHoverEffects();
-        this.createProgressMarker();
-        this.setupProgressUpdate();
+    setUpNextPrev(){
+        const result = this.findAdjacentLinks(window.location.pathname, this.links);
+        if (result.next) {
+            this.nextLink.href = result.next;
+            this.iconNext.href = result.next;
+            const nextLinkElement = this.nextLinksContainer[this.links.indexOf(result.next)];
+            const nextVideoLinkElement = nextLinkElement.querySelector('.video-link');
+            if (nextVideoLinkElement && this.nextVideo) {
+                this.nextVideo.src = nextVideoLinkElement.textContent.trim();
+            }
+        }
+
+        if (result.previous) {
+            this.prevLink.href = result.previous;
+            this.iconPrev.href = result.previous;
+            const prevLinkElement = this.nextLinksContainer[this.links.indexOf(result.previous)];
+            const prevVideoLinkElement = prevLinkElement.querySelector('.video-link');
+            if (prevVideoLinkElement && this.prevVideo) {
+                this.prevVideo.src = prevVideoLinkElement.textContent.trim();
+            }
+        }
+
+        this.iconNext.addEventListener('mouseenter', () => {
+            this.tlNext.play();
+        });
+        this.iconNext.addEventListener('mouseleave', () => {
+            this.tlNext.reverse();
+        });
+
+        this.iconPrev.addEventListener('mouseenter', () => {
+            this.tlPrev.play();
+        });
+
+        this.iconPrev.addEventListener('mouseleave', () => {
+            this.tlPrev.reverse();
+        });
     }
 
     generateTimeline() {
-        const duration = this.elements.video.duration;
-        const majorInterval = duration <= 30 ? 2 : duration <= 60 ? 5 : duration <= 300 ? 20 : 60;
+        const duration = this.video.duration;
+
+        // Determine the ideal interval for major lines
+        let majorInterval;
+        if (duration <= 30) {
+            majorInterval = 2; // For short videos, major lines every 5 seconds
+        } else if (duration <= 60) {
+            majorInterval = 5; // For medium videos, major lines every 10 seconds
+        } else if (duration <= 300) {
+            majorInterval = 20; // For longer videos, major lines every 30 seconds
+        } else {
+            majorInterval = 60; // For very long videos, major lines every 60 seconds
+        }
+
+        // Calculate the number of segments between major lines (at most 5)
         const minorCount = Math.min(5, majorInterval);
         const minorInterval = majorInterval / minorCount;
 
-        const fragment = document.createDocumentFragment();
+        // Clear existing content
+        this.workDurationWrapper.innerHTML = '';
+
+        // Create container for lines
         const linesContainer = document.createElement('div');
         linesContainer.className = 'timeline-lines';
+        this.workDurationWrapper.appendChild(linesContainer);
+
+        // Create container for thumbnails
         const thumbnailsContainer = document.createElement('div');
         thumbnailsContainer.className = 'timeline-thumbnails';
+        this.workDurationWrapper.appendChild(thumbnailsContainer);
 
         for (let time = 0; time <= duration; time += minorInterval) {
+            // Create minor line
             const minorLine = document.createElement('div');
             minorLine.className = 'timeline-minor-line';
             minorLine.style.left = `${(time / duration) * 100}%`;
             linesContainer.appendChild(minorLine);
 
+            // Create thumbnail container
             const thumbnail = document.createElement('div');
             thumbnail.className = 'video-thumbnail';
             thumbnail.style.left = `${(time / duration) * 100}%`;
             thumbnailsContainer.appendChild(thumbnail);
             this.videoThumbnails.push(thumbnail);
 
+            // Add major line and time label for major intervals
             if (time % majorInterval < 0.001 || time === duration) {
                 const majorLine = document.createElement('div');
                 majorLine.className = 'timeline-major-line';
@@ -163,46 +280,52 @@ export class Motion {
                 linesContainer.appendChild(timeLabel);
             }
         }
-
-        fragment.appendChild(linesContainer);
-        fragment.appendChild(thumbnailsContainer);
-        this.elements.workDurationWrapper.appendChild(fragment);
     }
 
     setupTimelineNavigation() {
-        this.elements.workDurationWrapper.addEventListener('click', (event) => {
-            const rect = this.elements.workDurationWrapper.getBoundingClientRect();
+        this.workDurationWrapper.addEventListener('click', (event) => {
+            const rect = this.workDurationWrapper.getBoundingClientRect();
             const clickPosition = event.clientX - rect.left;
             const percentageClicked = clickPosition / rect.width;
-            const newTime = this.elements.video.duration * percentageClicked;
-            this.elements.video.currentTime = newTime;
-            if (this.elements.video.paused) {
+            const newTime = this.video.duration * percentageClicked;
+
+            this.video.currentTime = newTime;
+
+            // If the video is paused, you might want to start playing it
+            if (this.video.paused) {
                 this.playVideo();
             }
         });
     }
 
-    generateThumbnails() {
-        if (window.Worker) {
-            const worker = new Worker('/thumbnailWorker.js');
-            worker.postMessage({
-                videoSrc: this.elements.video.src,
-                duration: this.elements.video.duration,
-                thumbnailCount: this.videoThumbnails.length
-            });
-            worker.onmessage = (e) => {
-                this.applyThumbnails(e.data);
-            };
-        } else {
-            // Fallback to synchronous thumbnail generation
-            this.generateThumbnailsSynchronously();
+    formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    showVideo() {
+        this.video.currentTime = 0;
+        this.mask = this.container.querySelector('.mask-alt')
+        gsap.to(this.video, { opacity: 1, duration: 0.65 });
+        gsap.to([this.lottieWrapper, this.mask], {opacity: 0, display: 'none', duration: 0.6});
+        if(!this.video.paused){
+            gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
+            gsap.to('.play', {fillOpacity: 0, duration: 0.75})
         }
     }
 
-    generateThumbnailsSynchronously() {
-        const duration = this.elements.video.duration;
+    async generateThumbnails() {
+        const duration = this.video.duration;
         const thumbnailCount = this.videoThumbnails.length;
         const thumbnailInterval = duration / thumbnailCount;
+
+        // Check if thumbnails already exist in session storage
+        const existingThumbnails = this.getThumbnailsFromSessionStorage();
+        if (existingThumbnails) {
+            this.applyThumbnails(existingThumbnails);
+            return;
+        }
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -213,7 +336,8 @@ export class Motion {
 
         for (let i = 0; i < thumbnailCount; i++) {
             const time = i * thumbnailInterval;
-            const thumbnail = this.captureVideoFrame(time, canvas, ctx);
+            const thumbnail = await this.captureVideoFrame(time, canvas, ctx);
+
             thumbnails.push({
                 dataUrl: thumbnail,
                 startTime: time,
@@ -221,13 +345,22 @@ export class Motion {
             });
         }
 
+        // Store thumbnails in session storage
+        this.storeThumbnailsInSessionStorage(thumbnails);
+
+        // Apply thumbnails to the DOM
         this.applyThumbnails(thumbnails);
     }
 
-    captureVideoFrame(time, canvas, ctx) {
-        this.elements.video.currentTime = time;
-        ctx.drawImage(this.elements.video, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/jpeg');
+    getThumbnailsFromSessionStorage() {
+        const videoSrc = this.video.src;
+        const storedThumbnails = sessionStorage.getItem(`thumbnails_${videoSrc}`);
+        return storedThumbnails ? JSON.parse(storedThumbnails) : null;
+    }
+
+    storeThumbnailsInSessionStorage(thumbnails) {
+        const videoSrc = this.video.src;
+        sessionStorage.setItem(`thumbnails_${videoSrc}`, JSON.stringify(thumbnails));
     }
 
     applyThumbnails(thumbnails) {
@@ -239,15 +372,25 @@ export class Motion {
         });
     }
 
+    captureVideoFrame(time, canvas, ctx) {
+        return new Promise((resolve) => {
+            this.video.currentTime = time;
+            this.video.onseeked = () => {
+                ctx.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg'));
+            };
+        });
+    }
+
     addTimelineHoverEffects() {
-        this.elements.workDurationWrapper.addEventListener('mouseenter', () => {
+        this.workDurationWrapper.addEventListener('mouseenter', () => {
             gsap.to('.timeline-major-line', {height: '20px', duration: 0.3});
             gsap.to('.timeline-minor-line', {height: '15px', duration: 0.3});
             gsap.to('.video-thumbnail', {opacity: 1, duration: 0.3, delay: 0.1});
             gsap.from('.video-thumbnail', {clipPath: 'inset(100% 0% 0% 0%)', duration: 0.75, delay: 0.1});
         });
 
-        this.elements.workDurationWrapper.addEventListener('mouseleave', () => {
+        this.workDurationWrapper.addEventListener('mouseleave', () => {
             gsap.to('.timeline-major-line', {height: '15px', duration: 0.3, delay: 0.35});
             gsap.to('.timeline-minor-line', {height: '10px', duration: 0.3, delay: 0.35});
             gsap.to('.video-thumbnail', {opacity: 0, duration: 0.3});
@@ -256,14 +399,17 @@ export class Motion {
     }
 
     createProgressMarker() {
+        // Create the progress trail
         this.progressTrail = document.createElement('div');
         this.progressTrail.className = 'progress-trail';
-        this.elements.workDurationWrapper.appendChild(this.progressTrail);
+        this.workDurationWrapper.appendChild(this.progressTrail);
 
+        // Create the progress marker (glowing orb)
         this.progressMarker = document.createElement('div');
         this.progressMarker.className = 'progress-marker';
-        this.elements.workDurationWrapper.appendChild(this.progressMarker);
+        this.workDurationWrapper.appendChild(this.progressMarker);
 
+        // Add styles to the head of the document
         const style = document.createElement('style');
         style.textContent = `
             .progress-trail {
@@ -291,19 +437,21 @@ export class Motion {
     }
 
     setupProgressUpdate() {
-        this.elements.video.addEventListener('timeupdate', () => {
-            const progress = this.elements.video.currentTime / this.elements.video.duration;
+        this.video.addEventListener('timeupdate', () => {
+            const progress = this.video.currentTime / this.video.duration;
             this.updateProgressMarker(progress);
         });
     }
 
     updateProgressMarker(progress) {
-        const markerPosition = this.elements.workDurationWrapper.offsetWidth * progress;
+        const markerPosition = this.workDurationWrapper.offsetWidth * progress;
+
         gsap.to(this.progressMarker, {
             left: markerPosition,
             duration: 0.5,
             ease: 'ease.out'
         });
+
         gsap.to(this.progressTrail, {
             scaleX: progress,
             duration: 0.5,
@@ -311,140 +459,27 @@ export class Motion {
         });
     }
 
-    showVideo() {
-        this.elements.video.currentTime = 0;
-        gsap.to(this.elements.video, {opacity: 1, duration: 0.65});
-        gsap.to([this.elements.lottieWrapper, this.elements.mask], {opacity: 0, display: 'none', duration: 0.6});
-        if (!this.elements.video.paused) {
-            gsap.to('.pause', {fillOpacity: 1, duration: 0.75});
-            gsap.to('.play', {fillOpacity: 0, duration: 0.75});
-        }
-    }
-
-    addEventListeners() {
-        this.container.addEventListener('click', this.handleContainerClick.bind(this));
-        window.addEventListener('resize', this.debounce(this.updatePaths.bind(this), 250));
-
-        const observer = new IntersectionObserver(this.handleIntersection.bind(this), {threshold: 0.1});
-        this.videoThumbnails.forEach(thumbnail => observer.observe(thumbnail));
-
-        this.elements.iconNext.addEventListener('mouseenter', () => this.tlNext.play());
-        this.elements.iconNext.addEventListener('mouseleave', () => this.tlNext.reverse());
-        this.elements.iconPrev.addEventListener('mouseenter', () => this.tlPrev.play());
-        this.elements.iconPrev.addEventListener('mouseleave', () => this.tlPrev.reverse());
-    }
-
-    handleContainerClick(event) {
-        const target = event.target;
-        if (target.id === 'showCreditsBtn') {
-            this.creditsTl.play();
-        } else if (target.id === 'hideCreditsBtn') {
-            this.creditsTl.reverse();
-        } else if (target.id === 'soundBtn') {
-            this.toggleSound();
-        } else if (target.id === 'playBtn') {
-            this.togglePlay();
-        } else if (target.classList.contains('fullscreen')) {
-            this.toggleFullscreen();
-        }
-    }
-
-    handleIntersection(entries) {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                gsap.to(entry.target, {opacity: 1, duration: 0.3});
-            } else {
-                gsap.to(entry.target, {opacity: 0, duration: 0.3});
+    addListener(){
+        this.video.addEventListener('click', () => {
+            if(!this.video.paused){
+                gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
+                gsap.to('.play', {fillOpacity: 0, duration: 0.75})
             }
+        });
+
+        window.addEventListener('resize', () => {
+            this.updatePaths();
+        });
+
+        this.container.querySelectorAll('.link-wrapper').forEach(wrapper => {
+            wrapper.addEventListener('mouseenter', this.applyHoverStyles);
+            wrapper.addEventListener('mouseleave', this.updatePaths);
         });
     }
 
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
 
-    toggleSound() {
-        if (this.elements.video.muted) {
-            this.unmuteVideo();
-        } else {
-            this.muteVideo();
-        }
-        this.checkSoundLinesAnimation();
-    }
 
-    togglePlay() {
-        if (this.elements.video.paused) {
-            this.playVideo();
-        } else {
-            this.pauseVideo();
-        }
-        this.checkSoundLinesAnimation();
-    }
-
-    toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            if (this.elements.video.requestFullscreen) {
-                this.elements.video.requestFullscreen();
-            } else if (this.elements.video.mozRequestFullScreen) {
-                this.elements.video.mozRequestFullScreen();
-            } else if (this.elements.video.webkitRequestFullscreen) {
-                this.elements.video.webkitRequestFullscreen();
-            } else if (this.elements.video.msRequestFullscreen) {
-                this.elements.video.msRequestFullscreen();
-            }
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) {
-                document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
-        }
-    }
-
-    muteVideo() {
-        this.elements.video.muted = true;
-        gsap.to('.mute', {clipPath: 'inset(0% 0% 0% 0%)', duration: 0.75});
-    }
-
-    unmuteVideo() {
-        this.elements.video.muted = false;
-        gsap.to('.mute', {clipPath: 'inset(100% 0% 0% 0%)', duration: 0.75});
-    }
-
-    playVideo() {
-        this.elements.video.play();
-        gsap.to('.pause', {fillOpacity: 1, duration: 0.75});
-        gsap.to('.play', {fillOpacity: 0, duration: 0.75});
-    }
-
-    pauseVideo() {
-        this.elements.video.pause();
-        gsap.to('.pause', {fillOpacity: 0, duration: 0.75});
-        gsap.to('.play', {fillOpacity: 1, duration: 0.75});
-    }
-
-    checkSoundLinesAnimation() {
-        if (!this.elements.video.muted && !this.elements.video.paused) {
-            this.tlSoundLines.play();
-        } else {
-            this.tlSoundLines.pause();
-            gsap.to(this.elements.soundLines, {scaleY: 1, duration: 0.1});
-        }
-    }
-
-    updatePaths() {
+    updatePaths(){
         const rects = document.querySelectorAll('.embed.credits rect');
         rects.forEach(rect => {
             rect.style.strokeDasharray = `${remToPx(1.25)}px ${remToPx(0.625)}px ${remToPx(1.25)}px ${remToPx(5)}px`;
@@ -460,14 +495,21 @@ export class Motion {
         });
     }
 
-    formatTime(seconds) {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    applyHoverStyles(){
+        const rects = document.querySelectorAll('.embed.credits rect');
+        rects.forEach(rect => {
+            rect.style.strokeDashoffset = `${remToPx(10.625)}px`;
+            rect.style.strokeDasharray = `${remToPx(1.25)}px ${remToPx(0.625)}px ${remToPx(1.25)}px ${remToPx(5)}px`;
+        });
+
+        const rects2 = document.querySelectorAll('.embed.hide-c rect');
+        rects2.forEach(rect => {
+            rect.style.strokeDashoffset = `${remToPx(8.5)}px`;
+            rect.style.strokeDasharray = `${remToPx(1)}px ${remToPx(0.5)}px ${remToPx(1)}px ${remToPx(4)}px`;
+        });
     }
 }
 
 function remToPx(rem) {
     return rem * parseFloat(getComputedStyle(document.documentElement).fontSize);
 }
-

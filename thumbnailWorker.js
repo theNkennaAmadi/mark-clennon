@@ -42,6 +42,8 @@ function generateThumbnails(video, canvas, ctx, thumbnailCount, thumbnailInterva
                     captureThumbnail(index + 1);
                 };
                 reader.readAsDataURL(blob);
+            }).catch(error => {
+                console.error('Error converting canvas to blob:', error);
             });
         };
     }
