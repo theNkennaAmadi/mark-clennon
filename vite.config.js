@@ -7,7 +7,7 @@ export default {
             input: '/main.js',
             output: {
                 format: 'umd',
-                entryFileNames: 'index.js',
+                entryFileNames: 'main.js',
                 esModule: false,
                 compact: true,
             },
