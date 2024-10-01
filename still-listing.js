@@ -188,7 +188,7 @@ export class StillListing {
         }
 
         animate()
-        gsap.to('.still-name-list', {opacity: 1, duration: 1})
+        gsap.to('.still-name-list, .category-header', {opacity: 1, duration: 1})
     }
 
     updateImagePositions(scrollProgress) {
@@ -367,7 +367,7 @@ export class StillListing {
             return Promise.resolve();
         });
 
-        gsap.to('.still-name-wrapper', {opacity: 0, duration: 0.2})
+        gsap.to('.still-name-wrapper, .category-header', {opacity: 0, duration: 0.2})
 
         await Promise.all(fadeOutPromises);
 
