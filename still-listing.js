@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import gsap from 'gsap'
 import ScrollTrigger from 'gsap/ScrollTrigger'
 import ScrollToPlugin from "gsap/ScrollToPlugin";
+import barba from '@barba/core'
 
 
 gsap.registerPlugin(ScrollTrigger, ScrollToPlugin)
@@ -18,6 +19,7 @@ export class StillListing {
         this.imageUrls = this.items.map(item => item.querySelector('img').src);
         this.imageNames = this.items.map(item => item.querySelector('.s-name').textContent);
         this.totalItems = this.items.length
+
 
         this.spacing = 3
         this.radius = 15
@@ -42,6 +44,11 @@ export class StillListing {
         this.scrollThreshold = 50; // pixels
         this.clickTimeout = 300; // milliseconds
 
+        this.mainLink = this.container.querySelector('.main-link')
+        this.view = localStorage.getItem('view') || 'gallery'
+        this.viewSwitchBtns = [...this.container.querySelectorAll('.stills-switch-btn')]
+        this.listWrapper = this.container.querySelector('.stills-list-wrapper')
+        this.canvasElement = null
         this.init()
     }
 
@@ -54,7 +61,128 @@ export class StillListing {
         this.addEventListeners()
         this.updateImagePositions(0);
         this.updateHTMLPositions()
+        this.initViews()
     }
+
+
+    initViews() {
+        this.canvasElement = this.container.querySelector('canvas')
+
+        if(this.view !== 'gallery') {
+            this.viewSwitchBtns.forEach(btn => btn.classList.toggle('inactive'))
+        }
+
+        this.viewSwitchBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.view = btn.dataset.view;
+                localStorage.setItem('view', this.view)
+                this.viewSwitchBtns.forEach(b => b.classList.toggle('inactive'))
+                this.switchView()
+            });
+        });
+
+        // Set initial view
+        this.switchView()
+    }
+
+    switchView() {
+        gsap.set(this.items, {yPercent: 60, scale: 0.8, opacity:0, stagger: 0.2})
+        if (this.view === 'gallery') {
+            this.switchToGalleryView();
+        } else {
+            this.switchToListView();
+        }
+
+        const event = new CustomEvent('viewChange', { detail: { view: this.view } });
+        this.container.dispatchEvent(event);
+    }
+
+    switchToListView() {
+        const tl = gsap.timeline();
+
+        // Scale down image planes
+        this.imagePlanes.forEach(plane => {
+            tl.to(plane.scale, { x: 0, y: 0, z: 0, duration: 0.75 }, 0);
+        });
+
+        // Fade out canvas and fade in list wrapper
+        tl.to([this.canvasElement, "#stillsGridTitle"], { opacity: 0, duration: 0.5 }, ">-0.25")
+            .set([this.canvasElement, "#stillsGridTitle"], { display: 'none' }, ">")
+            .set(this.listWrapper, { display: 'block', opacity: 0 }, "<")
+            .to(this.listWrapper, { opacity: 1, duration: 0.5 }, ">")
+            .to(this.items, {yPercent: 0, scale: 1, opacity:1, stagger: 0.2}, "<" );
+
+        tl.play();
+        this.disableAnimation();
+        this.updateLenisHeight();
+    }
+
+    switchToGalleryView() {
+        const tl = gsap.timeline();
+
+        // Set initial state
+        tl.set([this.canvasElement, "#stillsGridTitle"], { display: 'block', opacity: 0 })
+            .set(this.listWrapper, { opacity: 1 })
+            .set(this.imagePlanes.map(plane => plane.scale), { x: 0, y: 0, z: 0 });
+
+        // Fade out list wrapper
+        tl.to(this.listWrapper, { opacity: 0, duration: 0.5 })
+            .set(this.listWrapper, { display: 'none' }, ">")
+            .add(() => {
+                    // Reset the positions of the image planes before scaling them up
+                    this.updateImagePositions(0);
+                })
+
+        // Fade in canvas and scale up image planes
+        tl.to([this.canvasElement, "#stillsGridTitle"], { opacity: 1, duration: 0.5 })
+
+            .to(this.imagePlanes.map(plane => plane.scale), {
+                x: 1,
+                y: 1,
+                z: 1,
+                duration: 0.75,
+            }, "<");
+
+        tl.add(() => {
+            this.enableAnimation();
+            this.updateLenisHeight();
+        });
+
+        // Ensure the ScrollTrigger is updated after the transition
+        tl.add(() => {
+            ScrollTrigger.refresh();
+        });
+
+        tl.play();
+    }
+
+
+    updateLenisHeight() {
+        // Force a recalculation of the scroll height
+        const scrollHeight = this.container.querySelector('.main').scrollHeight;
+
+        // Dispatch a custom event to notify that the height has changed
+        const event = new CustomEvent('lenisHeightUpdate', {
+            detail: { height: scrollHeight }
+        });
+        this.container.dispatchEvent(event);
+
+        // Force a Lenis refresh
+        if (window.lenis) {
+            window.lenis.resize();
+        }
+    }
+
+    enableAnimation() {
+        // Re-enable ScrollTrigger
+        ScrollTrigger.getAll().forEach(trigger => trigger.enable())
+    }
+
+    disableAnimation() {
+        // Disable ScrollTrigger
+        ScrollTrigger.getAll().forEach(trigger => trigger.disable())
+    }
+
 
     setupThreeJS() {
         this.scene = new THREE.Scene()
@@ -177,8 +305,10 @@ export class StillListing {
             scrub: true,
             pin: true,
             onUpdate: (self) => {
-                const progress = self.progress;
-                this.updateImagePositions(progress);
+                if (this.view === 'gallery') {
+                    const progress = self.progress;
+                    this.updateImagePositions(progress);
+                }
             },
         });
 
@@ -188,7 +318,7 @@ export class StillListing {
         }
 
         animate()
-        gsap.to('.still-name-list, .category-header', {opacity: 1, duration: 1})
+        gsap.to('.still-name-list, .category-header, .stills-switch', {opacity: 1, duration: 1})
     }
 
     updateImagePositions(scrollProgress) {
@@ -229,7 +359,7 @@ export class StillListing {
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
 
-        this.renderer.domElement.addEventListener('mousemove', (event) => this.onPointerMove(event), false);
+        window.addEventListener('mousemove', (event) => this.onPointerMove(event), false);
         this.renderer.domElement.addEventListener('click', (event) => this.onPointerClick(event), false);
     }
 
@@ -243,6 +373,7 @@ export class StillListing {
         const x = event.clientX || (event.touches && event.touches[0].clientX);
         const y = event.clientY || (event.touches && event.touches[0].clientY);
 
+
         this.mouse.x = (x / window.innerWidth) * 2 - 1;
         this.mouse.y = - (y / window.innerHeight) * 2 + 1;
 
@@ -250,7 +381,7 @@ export class StillListing {
         const intersects = this.raycaster.intersectObjects(this.imagePlanes);
 
         if (intersects.length > 0) {
-            this.renderer.domElement.style.cursor = 'pointer';
+            //this.renderer.domElement.style.cursor = 'pointer';
 
             const hoveredObject = intersects[0].object;
 
@@ -261,12 +392,21 @@ export class StillListing {
             gsap.to(hoveredObject.scale, { x: 1.2, y: 1.2, duration: 0.5 });
 
             this.hoveredObject = hoveredObject;
+            const clickedImageIndex = this.imagePlanes.indexOf(intersects[0].object);
+            this.lastClickedImageIndex = clickedImageIndex;
+            //console.log(clickedImageIndex)
+            //console.log(hoveredObject)
+            const targetLink = this.itemLinks[clickedImageIndex].href;
+            this.mainLink.href = targetLink;
+            gsap.set(this.mainLink, {display: 'block'})
         } else {
-            this.renderer.domElement.style.cursor = 'default';
+           // this.renderer.domElement.style.cursor = 'default';
+            gsap.set(this.mainLink, {display: 'none'})
 
             if (this.hoveredObject) {
                 gsap.to(this.hoveredObject.scale, { x: 1, y: 1, duration: 1 });
                 this.hoveredObject = null;
+
             }
         }
     }
@@ -286,11 +426,17 @@ export class StillListing {
         if (intersects.length > 0) {
             const clickedImageIndex = this.imagePlanes.indexOf(intersects[0].object);
             this.lastClickedImageIndex = clickedImageIndex;
-            this.itemLinks[clickedImageIndex].click();
+
+            //gsap.set(document.querySelector('canvas'), {display: 'none'})
+
+            const targetLink = this.itemLinks[clickedImageIndex].href;
+            this.mainLink.href = targetLink;
+            gsap.set(this.mainLink, {display: 'block'})
         }
     }
 
     onTouchStart(event) {
+        gsap.set(this.mainLink, {display: 'block'})
         this.isTouching = true;
         this.isScrolling = false;
         this.touchStartX = event.touches[0].clientX;
@@ -367,7 +513,7 @@ export class StillListing {
             return Promise.resolve();
         });
 
-        gsap.to('.still-name-wrapper, .category-header', {opacity: 0, duration: 0.2})
+        gsap.to('.still-name-list, .category-header, .stills-switch', {opacity: 0, duration: 0.2})
 
         await Promise.all(fadeOutPromises);
 
@@ -443,4 +589,6 @@ export class StillListing {
         });
         this.renderer.dispose();
     }
+
+
 }

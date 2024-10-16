@@ -1,6 +1,6 @@
 {
   "main.js": {
-    "file": "index.js",
+    "file": "main.js",
     "name": "main",
     "src": "main.js",
     "isEntry": true

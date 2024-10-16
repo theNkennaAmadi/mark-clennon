@@ -18,7 +18,7 @@ gsap.config({
 
 let lenis;
 
-function setupLenis() {
+export function setupLenis() {
     lenis = new Lenis({
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -37,9 +37,11 @@ function setupLenis() {
         requestAnimationFrame(raf);
     };
     requestAnimationFrame(raf);
+
+    return lenis;
 }
 
-function setupLenisInfinite() {
+export function setupLenisInfinite() {
     lenis = new Lenis({
         duration: 1.2,
         easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -58,6 +60,8 @@ function setupLenisInfinite() {
         requestAnimationFrame(raf);
     };
     requestAnimationFrame(raf);
+
+    return lenis;
 }
 
 function resetWebflow(data) {
@@ -146,7 +150,47 @@ barba.init({
             afterEnter(data) {
                 new Nav(data.next.container);
                 stillListingInstance = new StillListing(data.next.container);
-                setupLenisInfinite();
+
+                // Set up Lenis based on the current view
+                if (stillListingInstance.view === 'gallery') {
+                    lenis = setupLenisInfinite();
+                } else {
+                    lenis = setupLenis();
+                }
+
+                // Set up the animation loop for Lenis
+                const raf = (time) => {
+                    lenis.raf(time);
+                    requestAnimationFrame(raf);
+                };
+                requestAnimationFrame(raf);
+
+                // Add an event listener to switch Lenis setup when the view changes
+                stillListingInstance.container.addEventListener('viewChange', (event) => {
+                    if (lenis) {
+                        lenis.destroy();
+                    }
+
+                    if (event.detail.view === 'gallery') {
+                        lenis = setupLenisInfinite();
+                    } else {
+                        lenis = setupLenis();
+                    }
+
+                    // Set up the new animation loop
+                    const newRaf = (time) => {
+                        lenis.raf(time);
+                        requestAnimationFrame(newRaf);
+                    };
+                    requestAnimationFrame(newRaf);
+                });
+            },
+            beforeLeave() {
+                // Destroy the Lenis instance when leaving the page
+                if (lenis) {
+                    lenis.destroy();
+                    lenis = null;
+                }
             },
         },
         {
@@ -182,39 +226,54 @@ barba.init({
                 namespace: ['stills']
             },
             async leave(data) {
-                // Store the clicked image index in the Barba data object
-                const clickedImageIndex = stillListingInstance.getClickedImageIndex();
-                data.clickedImageIndex = clickedImageIndex;
+                // Get the current view from the StillListing instance
+                const currentView = stillListingInstance.view;
 
-                // Prepare the StillListing scene for transition
-                await stillListingInstance.prepareForTransition(clickedImageIndex);
+                if (currentView === 'gallery') {
+                    // Store the clicked image index in the Barba data object
+                    const clickedImageIndex = stillListingInstance.getClickedImageIndex();
+                    data.clickedImageIndex = clickedImageIndex;
+
+                    // Prepare the StillListing scene for transition
+                    await stillListingInstance.prepareForTransition(clickedImageIndex);
+                }
             },
             async enter(data) {
-                // Get the still-intro-image from the new page
-                const stillIntroImage = data.next.container.querySelector('.still-intro-image');
-                gsap.set(data.next.container, {opacity: 0});
+                const currentView = stillListingInstance.view;
 
-                if (!stillIntroImage) {
-                    console.error('still-intro-image not found in the new page');
-                    return;
-                }
+                if (currentView === 'gallery') {
+                    // Get the still-intro-image from the new page
+                    const stillIntroImage = data.next.container.querySelector('.still-intro-image');
+                    gsap.set(data.next.container, {opacity: 0});
 
-                // Get the bounding rectangle of the still-intro-image
-                const targetRect = stillIntroImage.getBoundingClientRect();
-
-                // Animate the clicked mesh to match the still-intro-image
-                await stillListingInstance.transitionToStillsPage(data.clickedImageIndex, targetRect);
-
-                // Fade in the new page content
-                gsap.to(data.next.container, {
-                    opacity: 1,
-                    duration: 1,
-                    onComplete: () => {
-                        // Clean up the old page
-                        data.current.container.remove();
-                        stillListingInstance.cleanupAfterTransition();
+                    if (!stillIntroImage) {
+                        console.error('still-intro-image not found in the new page');
+                        return;
                     }
-                });
+
+                    // Get the bounding rectangle of the still-intro-image
+                    const targetRect = stillIntroImage.getBoundingClientRect();
+
+                    // Animate the clicked mesh to match the still-intro-image
+                    await stillListingInstance.transitionToStillsPage(data.clickedImageIndex, targetRect);
+
+                    // Fade in the new page content
+                    gsap.to(data.next.container, {
+                        opacity: 1,
+                        duration: 1,
+                        onComplete: () => {
+                            // Clean up the old page
+                            data.current.container.remove();
+                            stillListingInstance.cleanupAfterTransition();
+                        }
+                    });
+                } else {
+                    // For list view, use default Barba transition
+                    const nextContainer = data.next.container;
+                    let tlTransition = gsap.timeline({defaults: {ease: "expo.out", onComplete: () => {ScrollTrigger.refresh();}}});
+                    tlTransition.from(nextContainer, {clipPath: `inset(100% 0 0 0)`, duration: 1}, "<")
+                    return tlTransition;
+                }
             }
         },
         {

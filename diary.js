@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Splitting from "splitting";
 
 export class Diary {
     constructor(container) {
@@ -9,9 +8,7 @@ export class Diary {
         this.items = Array.from(container.querySelectorAll('.stills-item'));
         this.imageUrls = this.items.map(item => item.querySelector('img').src);
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.controls = null;
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.images = [];
@@ -19,152 +16,255 @@ export class Diary {
         this.currentlyFocused = null;
         this.originalFOV = 75;
         this.zoomedFOV = 40;
+        this.view = localStorage.getItem('diary-view') || 'grid';
+        this.viewSwitchBtns = [...this.container.querySelectorAll('.diary-switch-btn')];
+
+        // Cameras
+        this.perspectiveCamera = new THREE.PerspectiveCamera(this.originalFOV, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.orthographicCamera = new THREE.OrthographicCamera();
+        this.camera = this.view === 'grid' ? this.orthographicCamera : this.perspectiveCamera;
+
+        // Controls
+        this.controls = null;
+
         this.init();
     }
 
     init() {
-        this.initSplitting()
+        this.initViews();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setClearColor(0x000000, 0);
         this.container.appendChild(this.renderer.domElement);
-        this.camera.position.set(0, 0, 20);
-    }
-
-
-    initSplitting() {
-        //Initialize Splitting, split the text into characters and get the results
-        this.targets = [...document.querySelectorAll(".diary-text")];
-
-        const results = Splitting({target: this.targets, by: "chars"});
-
-        //Get all the words and wrap each word in a span
-        this.chars = results.map((result) => result.chars).flat();
-
-        this.chars.forEach((word) => {
-            let wrapper = document.createElement("span");
-            wrapper.classList.add("char-wrap");
-            word.parentNode.insertBefore(wrapper, word);
-            wrapper.appendChild(word);
-        });
-        gsap.set('.diary-text-wrapper', {opacity:1})
-
-        //Get all the characters and move them off the screen
-        //gsap.set([this.chars], {yPercent: 120});
-        this.revealText()
-    }
-
-    revealText() {
-        // Query all individual characters in the line for animation.
-        gsap.fromTo(this.chars, {
-            filter: 'blur(10px) brightness(30%)',
-            willChange: 'filter'
-        }, {
-            ease: 'none', // Animation easing.
-            filter: 'blur(0px) brightness(100%)',
-            stagger: 0.03, // Delay between starting animations for each character.
-            duration: 0.5, // Animation duration.
-            onComplete: ()=>{
-                gsap.to(this.chars, { filter: 'blur(10px) brightness(30%)', delay: 1.5})
-            }
-        });
-
-        gsap.to(this.chars,  {
-            ease: 'none', // Animation easing.
-            stagger: 0.025, // Delay between starting animations for each character.
-            onComplete: () => {
-                // Use requestAnimationFrame to defer 3D scene setup
-                requestAnimationFrame(() => this.initScene());
-            }
-        });
-    }
-
-    initScene() {
-        this.setupControls();
         this.setupLights();
         this.loadImages();
+        this.setupControls();
         this.addEventListeners();
         this.animate();
     }
 
+    initViews() {
+        this.canvasElement = this.container.querySelector('canvas');
+        if (this.view !== 'grid') {
+            this.viewSwitchBtns.forEach(btn => btn.classList.toggle('inactive'));
+        }
 
-    setupControls() {
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.screenSpacePanning = false;
-        this.controls.minDistance = 5;
-        this.controls.maxDistance = 50;
-    }
-
-    setupLights() {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        this.scene.add(ambientLight);
-
-        const pointLight = new THREE.PointLight(0xffffff, 0.5);
-        pointLight.position.set(10, 10, 10);
-        this.scene.add(pointLight);
-    }
-
-    loadImages() {
-        const loader = new THREE.TextureLoader();
-        const radius = 20;
-
-        // Load images in batches to reduce GPU load
-        const batchSize = 5;
-        const loadBatch = (startIndex) => {
-            const endIndex = Math.min(startIndex + batchSize, this.imageUrls.length);
-            for (let index = startIndex; index < endIndex; index++) {
-                this.loadSingleImage(loader, radius, index);
-            }
-            if (endIndex < this.imageUrls.length) {
-                setTimeout(() => loadBatch(endIndex), 100);
-            }
-        };
-
-        loadBatch(0);
-    }
-
-    loadSingleImage(loader, radius, index) {
-        loader.load(this.imageUrls[index], (texture) => {
-            const aspect = texture.image.width / texture.image.height;
-            const geometry = new THREE.PlaneGeometry(aspect, 1);
-            const material = new THREE.MeshBasicMaterial({
-                map: texture,
-                side: THREE.DoubleSide,
-                transparent: false,
-                opacity: 1
-            });
-            const mesh = new THREE.Mesh(geometry, material);
-
-            texture.colorSpace = THREE.SRGBColorSpace;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.format = THREE.RGBAFormat;
-
-            const phi = Math.acos(-1 + (2 * index) / this.imageUrls.length);
-            const theta = Math.sqrt(this.imageUrls.length * Math.PI) * phi;
-
-            mesh.position.setFromSphericalCoords(radius, phi, theta);
-            mesh.lookAt(0, 0, 0);
-
-            const scale = 1 + Math.random() * 0.5;
-            mesh.scale.set(scale * aspect, scale, 1);
-
-            this.scene.add(mesh);
-            this.images.push(mesh);
-
-            gsap.from(mesh.scale, {
-                x: 0,
-                y: 0,
-                z: 0,
-                duration: 1,
-                ease: "back.out(1.7)",
-                delay: index * 0.1
+        this.viewSwitchBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.view !== btn.dataset.view) {
+                    this.view = btn.dataset.view;
+                    localStorage.setItem('diary-view', this.view);
+                    this.viewSwitchBtns.forEach(b => b.classList.toggle('inactive'));
+                    this.switchView();
+                }
             });
         });
     }
 
+    setupLights() {
+        // Clear previous lights
+        const lights = this.scene.children.filter(child => child.isLight);
+        lights.forEach(light => this.scene.remove(light));
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        this.scene.add(ambientLight);
+    }
+
+    loadImages() {
+        const loader = new THREE.TextureLoader();
+        this.imagePositions = []; // To store positions for both views
+
+        const numImages = this.imageUrls.length;
+        const gridSize = Math.ceil(Math.sqrt(numImages));
+        const spacing = 3;
+        const radius = 20;
+
+        this.imageUrls.forEach((url, index) => {
+            loader.load(url, (texture) => {
+                const aspect = texture.image.width / texture.image.height;
+                const geometry = new THREE.PlaneGeometry(aspect * 2, 2);
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 1,
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+
+                // Grid position
+                const row = Math.floor(index / gridSize);
+                const col = index % gridSize;
+                const xOffset = (col - gridSize / 2 + 0.5) * spacing;
+                const yOffset = (row - gridSize / 2 + 0.5) * spacing;
+                const gridPosition = new THREE.Vector3(xOffset, -yOffset, 0);
+                const gridRotation = (Math.random() - 0.5) * 0.2;
+
+                // Globe position
+                const phi = Math.acos(-1 + (2 * index) / numImages);
+                const theta = Math.sqrt(numImages * Math.PI) * phi;
+                const globePosition = new THREE.Vector3().setFromSphericalCoords(radius, phi, theta);
+                const globeRotation = 0; // Facing the center
+
+                // Store positions
+                this.imagePositions.push({
+                    grid: { position: gridPosition, rotation: gridRotation },
+                    globe: { position: globePosition, rotation: globeRotation },
+                });
+
+                // Set initial position based on current view
+                if (this.view === 'grid') {
+                    mesh.position.copy(gridPosition);
+                    mesh.rotation.z = gridRotation;
+                } else {
+                    mesh.position.copy(globePosition);
+                    mesh.lookAt(0, 0, 0);
+                }
+
+                this.scene.add(mesh);
+                this.images.push(mesh);
+
+                gsap.from(mesh.scale, {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    duration: 0.5,
+                    ease: 'back.out(1.7)',
+                    delay: index * 0.05,
+                });
+            });
+        });
+    }
+
+    setupControls() {
+        if (this.controls) {
+            this.controls.dispose();
+        }
+
+        if (this.view === 'grid') {
+            this.camera = this.orthographicCamera;
+            this.updateCameraAspect();
+            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.enableRotate = false;
+            this.controls.enableZoom = true;
+            this.controls.enablePan = true;
+            this.controls.dampingFactor = 0.1;
+            this.controls.zoomSpeed = 0.8;
+
+            this.controls.mouseButtons = {
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: null
+            };
+            this.controls.touches = {
+                ONE: THREE.TOUCH.PAN,
+                TWO: THREE.TOUCH.DOLLY_PAN
+            };
+
+            this.camera.position.set(0, 0, 10);
+            this.camera.lookAt(0, 0, 0);
+            this.controls.enableDamping = true;
+        } else {
+            this.camera = this.perspectiveCamera;
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+
+            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.enableDamping = true;
+            this.controls.dampingFactor = 0.05;
+            this.controls.screenSpacePanning = false;
+            this.controls.minDistance = 5;
+            this.controls.maxDistance = 50;
+
+            this.camera.position.set(0, 0, 20);
+        }
+    }
+
+    switchView() {
+        // Update controls
+        this.setupControls();
+
+        // Animate images to new positions
+        this.images.forEach((mesh, index) => {
+            const positions = this.imagePositions[index];
+            const targetPosition = this.view === 'grid' ? positions.grid.position : positions.globe.position;
+            const targetRotation = this.view === 'grid' ? positions.grid.rotation : positions.globe.rotation;
+
+            gsap.to(mesh.position, {
+                x: targetPosition.x,
+                y: targetPosition.y,
+                z: targetPosition.z,
+                duration: 1.5,
+                ease: 'power2.inOut'
+            });
+
+            if (this.view === 'grid') {
+                gsap.to(mesh.rotation, {
+                    x: 0,
+                    y: 0,
+                    z: targetRotation,
+                    duration: 1.5,
+                    ease: 'power2.inOut'
+                });
+            } else {
+                // Make the image face the center in globe view
+                gsap.to(mesh.quaternion, {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    w: 1,
+                    duration: 1.5,
+                    ease: 'power2.inOut',
+                    onUpdate: () => mesh.lookAt(0, 0, 0)
+                });
+            }
+        });
+
+        // Animate camera transition
+        if (this.view === 'grid') {
+            // Switch to OrthographicCamera
+            const newCam = this.orthographicCamera;
+            this.updateCameraAspect();
+            newCam.position.set(0, 0, 10);
+            newCam.lookAt(0, 0, 0);
+
+            gsap.to(this.camera.position, {
+                x: newCam.position.x,
+                y: newCam.position.y,
+                z: newCam.position.z,
+                duration: 1.5,
+                ease: 'power2.inOut',
+                onUpdate: () => this.camera.updateProjectionMatrix(),
+                onComplete: () => {
+                    this.camera = newCam;
+                    this.setupControls();
+                }
+            });
+        } else {
+            // Switch to PerspectiveCamera
+            const newCam = this.perspectiveCamera;
+            newCam.position.set(0, 0, 20);
+            newCam.lookAt(0, 0, 0);
+            newCam.aspect = window.innerWidth / window.innerHeight;
+            newCam.updateProjectionMatrix();
+
+            gsap.to(this.camera.position, {
+                x: newCam.position.x,
+                y: newCam.position.y,
+                z: newCam.position.z,
+                duration: 1.5,
+                ease: 'power2.inOut',
+                onUpdate: () => this.camera.updateProjectionMatrix(),
+                onComplete: () => {
+                    this.camera = newCam;
+                    this.setupControls();
+                }
+            });
+        }
+    }
 
     addEventListeners() {
         window.addEventListener('resize', () => this.onWindowResize(), false);
@@ -173,14 +273,34 @@ export class Diary {
     }
 
     onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
+        if (this.view === 'grid') {
+            this.updateCameraAspect();
+        } else if (this.view === 'globe') {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+        }
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    updateCameraAspect() {
+        const aspect = window.innerWidth / window.innerHeight;
+        const frustumSize = 10;
+        this.orthographicCamera.left = frustumSize * aspect / -2;
+        this.orthographicCamera.right = frustumSize * aspect / 2;
+        this.orthographicCamera.top = frustumSize / 2;
+        this.orthographicCamera.bottom = frustumSize / -2;
+        this.orthographicCamera.near = -1000;
+        this.orthographicCamera.far = 1000;
+        this.orthographicCamera.updateProjectionMatrix();
     }
 
     onMouseMove(event) {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        if (this.view === 'grid') {
+            this.addParallaxEffect(); // Apply parallax effect
+        }
 
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.images);
@@ -197,144 +317,185 @@ export class Diary {
         }
     }
 
-    onClick() {
+    addParallaxEffect() {
+        // Implement parallax effect if needed
+    }
+
+    onClick(event) {
         this.raycaster.setFromCamera(this.mouse, this.camera);
         const intersects = this.raycaster.intersectObjects(this.images);
 
         if (intersects.length > 0) {
             const clickedImage = intersects[0].object;
             this.focusOnImage(clickedImage);
-        } else {
+        } else if (this.currentlyFocused) {
             this.resetCamera();
         }
     }
 
     focusOnImage(image) {
-        if (this.currentlyFocused === image) {
-            return;
-        }
+        if (this.view === 'grid') {
+            const targetPosition = new THREE.Vector3();
+            image.getWorldPosition(targetPosition);
 
-        this.currentlyFocused = image;
-
-        const imagePosition = image.position.clone();
-        const direction = imagePosition.clone().sub(this.camera.position).normalize();
-        const distance = image.scale.x * 1.25;
-        const cameraPosition = imagePosition.clone().sub(direction.multiplyScalar(distance));
-
-        gsap.to(this.camera.position, {
-            x: cameraPosition.x,
-            y: cameraPosition.y,
-            z: cameraPosition.z,
-            duration: 1.5,
-            ease: "power2.out"
-        });
-
-        gsap.to(this.camera, {
-            fov: this.zoomedFOV,
-            duration: 1.5,
-            ease: "power2.out",
-            onUpdate: () => this.camera.updateProjectionMatrix()
-        });
-
-        gsap.to(this.controls.target, {
-            x: imagePosition.x,
-            y: imagePosition.y,
-            z: imagePosition.z,
-            duration: 1.5,
-            ease: "power2.out",
-            onUpdate: () => this.controls.update()
-        });
-
-        gsap.to(image.scale, {
-            x: image.scale.x * 1.2,
-            y: image.scale.y * 1.2,
-            duration: 0.5
-        });
-
-        this.images.forEach(otherImage => {
-            if (otherImage !== image) {
-                gsap.to(otherImage.material, { opacity: 0.1, duration: 0.5 });
-            } else {
-                gsap.to(otherImage.material, { opacity: 1, duration: 0.5 });
+            gsap.to(image.scale, {
+                x: image.scale.x * 1.2,
+                y: image.scale.y * 1.2,
+                duration: 0.3,
+            });
+        } else if (this.view === 'globe') {
+            if (this.currentlyFocused === image) {
+                return;
             }
-        });
 
-        this.controls.enabled = false;
-        setTimeout(() => {
-            this.controls.enabled = true;
-        }, 1500);
+            this.currentlyFocused = image;
+
+            const imagePosition = image.position.clone();
+            const direction = imagePosition.clone().sub(this.camera.position).normalize();
+            const distance = image.scale.x * 1.25;
+            const cameraPosition = imagePosition.clone().sub(direction.multiplyScalar(distance));
+
+            gsap.to(this.camera.position, {
+                x: cameraPosition.x,
+                y: cameraPosition.y,
+                z: cameraPosition.z,
+                duration: 1.5,
+                ease: "power2.out"
+            });
+
+            gsap.to(this.camera, {
+                fov: this.zoomedFOV,
+                duration: 1.5,
+                ease: "power2.out",
+                onUpdate: () => this.camera.updateProjectionMatrix()
+            });
+
+            gsap.to(this.controls.target, {
+                x: imagePosition.x,
+                y: imagePosition.y,
+                z: imagePosition.z,
+                duration: 1.5,
+                ease: "power2.out",
+                onUpdate: () => this.controls.update()
+            });
+
+            gsap.to(image.scale, {
+                x: image.scale.x * 1.2,
+                y: image.scale.y * 1.2,
+                duration: 0.5
+            });
+
+            this.images.forEach(otherImage => {
+                if (otherImage !== image) {
+                    gsap.to(otherImage.material, { opacity: 0.1, duration: 0.5 });
+                } else {
+                    gsap.to(otherImage.material, { opacity: 1, duration: 0.5 });
+                }
+            });
+
+            this.controls.enabled = false;
+            setTimeout(() => {
+                this.controls.enabled = true;
+            }, 1500);
+        }
     }
 
     resetCamera() {
-        if (!this.currentlyFocused) return;
+        if (this.view === 'globe' && this.currentlyFocused) {
+            gsap.to(this.camera.position, {
+                x: 0,
+                y: 0,
+                z: 20,
+                duration: 1.5,
+                ease: "power2.out"
+            });
 
-        gsap.to(this.camera.position, {
-            x: 0,
-            y: 0,
-            z: 20,
-            duration: 1.5,
-            ease: "power2.out"
-        });
+            gsap.to(this.camera, {
+                fov: this.originalFOV,
+                duration: 1.5,
+                ease: "power2.out",
+                onUpdate: () => this.camera.updateProjectionMatrix()
+            });
 
-        gsap.to(this.camera, {
-            fov: this.originalFOV,
-            duration: 1.5,
-            ease: "power2.out",
-            onUpdate: () => this.camera.updateProjectionMatrix()
-        });
+            gsap.to(this.controls.target, {
+                x: 0,
+                y: 0,
+                z: 0,
+                duration: 1.5,
+                ease: "power2.out",
+                onUpdate: () => this.controls.update()
+            });
 
-        gsap.to(this.controls.target, {
-            x: 0,
-            y: 0,
-            z: 0,
-            duration: 1.5,
-            ease: "power2.out",
-            onUpdate: () => this.controls.update()
-        });
+            gsap.to(this.currentlyFocused.scale, {
+                x: this.currentlyFocused.scale.x / 1.2,
+                y: this.currentlyFocused.scale.y / 1.2,
+                duration: 0.5
+            });
 
-        gsap.to(this.currentlyFocused.scale, {
-            x: this.currentlyFocused.scale.x / 1.2,
-            y: this.currentlyFocused.scale.y / 1.2,
-            duration: 0.5
-        });
+            this.images.forEach(image => {
+                gsap.to(image.material, { opacity: 0.8, duration: 0.5 });
+            });
 
-        this.images.forEach(image => {
-            gsap.to(image.material, { opacity: 0.8, duration: 0.5 });
-        });
+            this.currentlyFocused = null;
 
-        this.currentlyFocused = null;
-
-        this.controls.enabled = false;
-        setTimeout(() => {
-            this.controls.enabled = true;
-        }, 1500);
+            this.controls.enabled = false;
+            setTimeout(() => {
+                this.controls.enabled = true;
+            }, 1500);
+        }
     }
 
     hoverEffect(image) {
-        if (image !== this.currentlyFocused) {
+        if (this.view === 'grid') {
             gsap.to(image.scale, {
                 x: image.scale.x * 1.1,
                 y: image.scale.y * 1.1,
-                duration: 0.3
+                duration: 0.3,
             });
-            gsap.to(image.material, { opacity: 1, duration: 0.3 });
+            gsap.to(image.rotation, {
+                z: 0,
+                duration: 0.3,
+            });
+        } else if (this.view === 'globe') {
+            if (image !== this.currentlyFocused) {
+                gsap.to(image.scale, {
+                    x: image.scale.x * 1.1,
+                    y: image.scale.y * 1.1,
+                    duration: 0.3
+                });
+                gsap.to(image.material, { opacity: 1, duration: 0.3 });
+            }
         }
     }
 
     resetImageScale(image) {
-        if (image !== this.currentlyFocused) {
+        if (this.view === 'grid') {
             gsap.to(image.scale, {
-                x: image.scale.x / 1.1,
-                y: image.scale.y / 1.1,
-                duration: 0.3
+                x: 1,
+                y: 1,
+                duration: 0.3,
             });
-            gsap.to(image.material, { opacity: 0.8, duration: 0.3 });
+            gsap.to(image.rotation, {
+                z: (Math.random() - 0.5) * 0.2,
+                duration: 0.3,
+            });
+        } else if (this.view === 'globe') {
+            if (image !== this.currentlyFocused) {
+                gsap.to(image.scale, {
+                    x: image.scale.x / 1.1,
+                    y: image.scale.y / 1.1,
+                    duration: 0.3
+                });
+                gsap.to(image.material, { opacity: 0.8, duration: 0.3 });
+            }
         }
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        this.controls.update();
+        if (this.controls) {
+            this.controls.update();
+        }
         this.renderer.render(this.scene, this.camera);
     }
 }
