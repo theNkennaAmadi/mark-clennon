@@ -98,8 +98,8 @@ export class Diary {
                 // Grid position
                 const row = Math.floor(index / gridSize);
                 const col = index % gridSize;
-                const xOffset = (col - gridSize / 2 + 0.5) * spacing;
-                const yOffset = (row - gridSize / 2 + 0.5) * spacing;
+                const xOffset = (col - gridSize / 2 + 0.5) * spacing*0.85;
+                const yOffset = (row - gridSize / 2 + 0.5) * spacing*0.85;
                 const gridPosition = new THREE.Vector3(xOffset, -yOffset, 0);
                 const gridRotation = (Math.random() - 0.5) * 0.2;
 
@@ -284,7 +284,7 @@ export class Diary {
 
     updateCameraAspect() {
         const aspect = window.innerWidth / window.innerHeight;
-        const frustumSize = 10;
+        const frustumSize = 5;
         this.orthographicCamera.left = frustumSize * aspect / -2;
         this.orthographicCamera.right = frustumSize * aspect / 2;
         this.orthographicCamera.top = frustumSize / 2;
