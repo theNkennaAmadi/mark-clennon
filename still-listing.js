@@ -16,7 +16,7 @@ export class StillListing {
         this.imagePlanes = []
         this.items = [...container.querySelectorAll('.stills-item')];
         this.itemLinks = [...container.querySelectorAll('.stills-link')]
-        this.imageUrls = this.items.map(item => item.querySelector('img').src);
+        this.imageUrls = this.items.map(item => item.querySelector('img').src).toReversed();
         this.imageNames = this.items.map(item => item.querySelector('.s-name').textContent);
         this.totalItems = this.items.length
 
