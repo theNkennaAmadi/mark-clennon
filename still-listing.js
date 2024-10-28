@@ -15,7 +15,7 @@ export class StillListing {
         this.renderer = null
         this.imagePlanes = []
         this.items = [...container.querySelectorAll('.stills-item')];
-        this.itemLinks = [...container.querySelectorAll('.stills-link')]
+        this.itemLinks = [...container.querySelectorAll('.stills-link')].toReversed();
         this.imageUrls = this.items.map(item => item.querySelector('img').src).toReversed();
         this.imageNames = this.items.map(item => item.querySelector('.s-name').textContent);
         this.totalItems = this.items.length
@@ -202,7 +202,7 @@ export class StillListing {
 
     updatePositions(currentMiddleIndex, totalItems) {
         const items = document.querySelectorAll('.still-name-item h1');
-        const items2 = document.querySelectorAll('.still-name-item .still-year');
+        const items2 = document.querySelectorAll('.still-name-item');
         const halfTotal = Math.floor(totalItems / 2);
 
         items.forEach((item, index) => {

@@ -22,6 +22,7 @@ export class Motion{
         this.fullscreenBtn = this.container.querySelector('.fullscreen')
         this.workDurationWrapper = this.container.querySelector('.work-duration-wrapper')
         this.lottieWrapper = this.container.querySelector('.lottie-wrapper')
+        this.poster = this.container.querySelector('.poster')
         this.videoThumbnails = []
         this.progressMarker = null;
         this.progressTrail = null;
@@ -308,7 +309,7 @@ export class Motion{
         this.video.currentTime = 0;
         this.mask = this.container.querySelector('.mask-alt')
         gsap.to(this.video, { opacity: 1, duration: 0.65 });
-        gsap.to([this.lottieWrapper, this.mask], {opacity: 0, display: 'none', duration: 0.6});
+        gsap.to([this.lottieWrapper, this.mask, this.poster], {opacity: 0, display: 'none', duration: 0.6});
         if(!this.video.paused){
             gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
             gsap.to('.play', {fillOpacity: 0, duration: 0.75})
