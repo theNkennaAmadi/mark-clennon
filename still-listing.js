@@ -202,7 +202,6 @@ export class StillListing {
 
     updatePositions(currentMiddleIndex, totalItems) {
         const items = document.querySelectorAll('.still-name-item h1');
-        const items2 = document.querySelectorAll('.still-name-item');
         const halfTotal = Math.floor(totalItems / 2);
 
         items.forEach((item, index) => {
@@ -216,16 +215,6 @@ export class StillListing {
             item.style.opacity = index === currentMiddleIndex ? 1 : 0;
         });
 
-        items2.forEach((item, index) => {
-            let relativePosition = index - currentMiddleIndex;
-            if (relativePosition > halfTotal) relativePosition -= totalItems;
-            if (relativePosition < -halfTotal) relativePosition += totalItems;
-
-            const yPercentage = relativePosition * 100;
-            item.style.transform = `translateY(${yPercentage}%)`;
-            item.style.transition = 'transform 0.75s ease-out';
-            item.style.opacity = index === currentMiddleIndex ? 1 : 0;
-        });
     }
 
     updateHTMLPositions() {
