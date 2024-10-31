@@ -154,6 +154,9 @@ export class Diary {
             this.controls.dampingFactor = 0.1;
             this.controls.zoomSpeed = 0.8;
 
+            this.controls.maxZoom = 3
+            //this.controls.maxTargetRadius = 1
+
             this.controls.mouseButtons = {
                 LEFT: THREE.MOUSE.PAN,
                 MIDDLE: THREE.MOUSE.DOLLY,
