@@ -15,9 +15,10 @@ export class Diary {
         this.hoveredImage = null;
         this.currentlyFocused = null;
         this.originalFOV = 75;
-        this.zoomedFOV = 40;
+        this.zoomedFOV = 50;
         this.view = localStorage.getItem('diary-view') || 'grid';
         this.viewSwitchBtns = [...this.container.querySelectorAll('.diary-switch-btn')];
+        this.textView = this.container.querySelector('.diary-text-view');
 
         // Cameras
         this.perspectiveCamera = new THREE.PerspectiveCamera(this.originalFOV, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -76,7 +77,7 @@ export class Diary {
 
         const numImages = this.imageUrls.length;
         const gridSize = Math.ceil(Math.sqrt(numImages));
-        const spacing = 3;
+        const spacing = 3.25;
         const radius = 20;
 
         this.imageUrls.forEach((url, index) => {
@@ -100,7 +101,7 @@ export class Diary {
                 const col = index % gridSize;
                 const xOffset = (col - gridSize / 2 + 0.5) * spacing*0.85;
                 const yOffset = (row - gridSize / 2 + 0.5) * spacing*0.85;
-                const gridPosition = new THREE.Vector3(xOffset, -yOffset, 0);
+                const gridPosition = new THREE.Vector3(xOffset, -yOffset, Math.random());
                 const gridRotation = (Math.random() - 0.5) * 0.2;
 
                 // Globe position
@@ -148,14 +149,25 @@ export class Diary {
             this.camera = this.orthographicCamera;
             this.updateCameraAspect();
             this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+
+
             this.controls.enableRotate = false;
             this.controls.enableZoom = true;
             this.controls.enablePan = true;
             this.controls.dampingFactor = 0.1;
             this.controls.zoomSpeed = 0.8;
 
-            this.controls.maxZoom = 3
-            //this.controls.maxTargetRadius = 1
+
+            this.controls.addEventListener('change', () => {
+                console.log(this.controls.target)
+               // this.controls.target.set()
+            });
+
+
+
+            this.controls.minZoom = 0.15;  // Adjust this value to set maximum zoom out
+            this.controls.maxZoom = 3;     // Your existing maximum zoom in limit
+
 
             this.controls.mouseButtons = {
                 LEFT: THREE.MOUSE.PAN,
@@ -273,6 +285,8 @@ export class Diary {
         window.addEventListener('resize', () => this.onWindowResize(), false);
         this.renderer.domElement.addEventListener('mousemove', (event) => this.onMouseMove(event), false);
         this.renderer.domElement.addEventListener('click', (event) => this.onClick(event), false);
+
+
     }
 
     onWindowResize() {
@@ -313,6 +327,7 @@ export class Diary {
                 if (this.hoveredImage) this.resetImageScale(this.hoveredImage);
                 this.hoveredImage = intersects[0].object;
                 this.hoverEffect(this.hoveredImage);
+
             }
         } else if (this.hoveredImage) {
             this.resetImageScale(this.hoveredImage);
@@ -357,6 +372,8 @@ export class Diary {
             const direction = imagePosition.clone().sub(this.camera.position).normalize();
             const distance = image.scale.x * 1.25;
             const cameraPosition = imagePosition.clone().sub(direction.multiplyScalar(distance));
+
+            gsap.to(this.textView, { display: 'none', opacity: 0, duration: 0.3 });
 
             gsap.to(this.camera.position, {
                 x: cameraPosition.x,
@@ -459,6 +476,7 @@ export class Diary {
                 z: 0,
                 duration: 0.3,
             });
+
         } else if (this.view === 'globe') {
             if (image !== this.currentlyFocused) {
                 gsap.to(image.scale, {
@@ -467,6 +485,8 @@ export class Diary {
                     duration: 0.3
                 });
                 gsap.to(image.material, { opacity: 1, duration: 0.3 });
+                gsap.to(this.textView, { display: 'flex', opacity:1, duration: 0.3, overwrite: true });
+
             }
         }
     }
@@ -490,6 +510,7 @@ export class Diary {
                     duration: 0.3
                 });
                 gsap.to(image.material, { opacity: 0.8, duration: 0.3 });
+                gsap.to(this.textView, { display: 'none', opacity: 0, duration: 0.3 });
             }
         }
     }
@@ -497,6 +518,19 @@ export class Diary {
     animate() {
         requestAnimationFrame(() => this.animate());
         if (this.controls) {
+            this.controls.update();
+        }
+        if (this.controls && this.view === 'grid') {
+            // Calculate max pan from grid size
+            const gridSize = Math.ceil(Math.sqrt(this.imageUrls.length));
+            const spacing = 3 * 0.85; // Match your spacing from loadImages
+            const maxPan = (gridSize * spacing) / 2;
+
+            this.controls.target.set(
+                Math.min(Math.max(this.controls.target.x, -maxPan), maxPan),
+                Math.min(Math.max(this.controls.target.y, -maxPan), maxPan),
+                0
+            );
             this.controls.update();
         }
         this.renderer.render(this.scene, this.camera);
