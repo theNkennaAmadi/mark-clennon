@@ -11,6 +11,7 @@ export class Diary {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+        this.mainMouse = []
         this.images = [];
         this.hoveredImage = null;
         this.currentlyFocused = null;
@@ -159,13 +160,11 @@ export class Diary {
 
 
             this.controls.addEventListener('change', () => {
-                console.log(this.controls.target)
+               // console.log(this.controls.target)
                // this.controls.target.set()
             });
 
-
-
-            this.controls.minZoom = 0.15;  // Adjust this value to set maximum zoom out
+            this.controls.minZoom = 0.3;  // Adjust this value to set maximum zoom out
             this.controls.maxZoom = 3;     // Your existing maximum zoom in limit
 
 
@@ -315,8 +314,12 @@ export class Diary {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
+        this.mainMouse.x = event.clientX
+        this.mainMouse.y = event.clientY
+
         if (this.view === 'grid') {
             this.addParallaxEffect(); // Apply parallax effect
+            gsap.to(this.textView, {x: this.mainMouse.x, y: this.mainMouse.y, duration: 0.3 });
         }
 
         this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -476,7 +479,8 @@ export class Diary {
                 z: 0,
                 duration: 0.3,
             });
-
+            gsap.to(this.textView, { display: 'inline-block', width: 'max-content', opacity:1, duration: 0.3 });
+            gsap.to(this.textView.children, {backgroundColor: 'black'})
         } else if (this.view === 'globe') {
             if (image !== this.currentlyFocused) {
                 gsap.to(image.scale, {
@@ -485,8 +489,8 @@ export class Diary {
                     duration: 0.3
                 });
                 gsap.to(image.material, { opacity: 1, duration: 0.3 });
-                gsap.to(this.textView, { display: 'flex', opacity:1, duration: 0.3, overwrite: true });
-
+                gsap.to(this.textView, { display: 'flex', opacity:1, duration: 0.3, });
+                gsap.to(this.textView.children, {backgroundColor: 'transparent'})
             }
         }
     }
@@ -502,7 +506,9 @@ export class Diary {
                 z: (Math.random() - 0.5) * 0.2,
                 duration: 0.3,
             });
+            gsap.to(this.textView, { display: 'none', opacity: 0, duration: 0.3 });
         } else if (this.view === 'globe') {
+            gsap.set(this.textView, {clearProps: 'all' });
             if (image !== this.currentlyFocused) {
                 gsap.to(image.scale, {
                     x: image.scale.x / 1.1,
