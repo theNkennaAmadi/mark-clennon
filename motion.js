@@ -314,6 +314,8 @@ export class Motion{
             gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
             gsap.to('.play', {fillOpacity: 0, duration: 0.75})
         }
+        // Unmute the video
+        this.unmuteVideo();
     }
 
     async generateThumbnails() {
