@@ -307,6 +307,8 @@ export class Motion{
 
     showVideo() {
         this.video.currentTime = 0;
+        // Unmute the video
+        this.unmuteVideo();
         this.mask = this.container.querySelector('.mask-alt')
         gsap.to(this.video, { opacity: 1, duration: 0.65 });
         gsap.to([this.lottieWrapper, this.mask, this.poster], {opacity: 0, display: 'none', duration: 0.6});
@@ -314,8 +316,6 @@ export class Motion{
             gsap.to('.pause', {fillOpacity: 1, duration: 0.75})
             gsap.to('.play', {fillOpacity: 0, duration: 0.75})
         }
-        // Unmute the video
-        this.unmuteVideo();
     }
 
     async generateThumbnails() {
