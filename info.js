@@ -34,10 +34,10 @@ export class Info{
         let tlRevealIntro = gsap.timeline({})
         tlRevealIntro.set('.main', {opacity: 1})
         tlRevealIntro.set('.page-wrapper', {backgroundColor: 'black'})
-        let value = window.innerWidth > 767 ? '-40vw' : '18vw'
+        let value = window.innerWidth > 767 ? '-26rem' : '18vw'
         tlRevealIntro.set(this.introImg, {x: value,width: '30vh'})
             .fromTo(this.introImg, {clipPath: 'inset(100% 0 0 0)'}, {clipPath: 'inset(0% 0 0 0)', yPercent: -110, duration: 1, ease: 'expo.out'})
-            .to(this.introImg, {x: 0, yPercent: 0, width: '17rem', duration: 2, ease: 'expo.out'})
+            .to(this.introImg, {x: 0, yPercent: 0, width: ()=> window.innerWidth > 479 ? '26rem' : '22rem', duration: 2, ease: 'expo.out'})
             .to('.page-wrapper', {backgroundColor: '#d9d9d9', onComplete: ()=>{
                     this.showText()
                 }}, "<")
